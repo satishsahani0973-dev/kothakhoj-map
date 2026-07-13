@@ -387,6 +387,55 @@ var Shareabouts = Shareabouts || {};
     geolocate: function() {
       this.map.locate();
     },
+    startDirections: function(destLatLng) {
+      var self = this;
+      this.stopDirections();
+
+      if (!navigator.geolocation) {
+        alert('Your browser does not support location. Directions are not available.');
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(function(pos) {
+        var here = L.latLng(pos.coords.latitude, pos.coords.longitude);
+
+        self.routingControl = L.Routing.control({
+          waypoints: [here, destLatLng],
+          router: L.Routing.mapbox(S.bootstrapped.mapboxToken, { profile: 'mapbox/walking' }),
+          fitSelectedRoutes: true,
+          addWaypoints: false,
+          draggableWaypoints: false,
+          show: false,
+          collapsible: true
+        }).addTo(self.map);
+
+        var lastRouted = here;
+        self.geoWatchId = navigator.geolocation.watchPosition(function(pos) {
+          // Ignore inaccurate fixes (cell-tower guesses etc.)
+          if (pos.coords.accuracy > 60) { return; }
+          var now = L.latLng(pos.coords.latitude, pos.coords.longitude);
+          // Only re-route after moving ~15 meters
+          if (now.distanceTo(lastRouted) < 15) { return; }
+          lastRouted = now;
+          if (self.routingControl) {
+            self.routingControl.spliceWaypoints(0, 1, now);
+          }
+        }, null, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+
+      }, function(err) {
+        alert('Could not get your location: ' + err.message);
+      }, { enableHighAccuracy: true, timeout: 15000 });
+    },
+    stopDirections: function() {
+      if (this.geoWatchId != null) {
+        navigator.geolocation.clearWatch(this.geoWatchId);
+        this.geoWatchId = null;
+      }
+      if (this.routingControl) {
+        this.map.removeControl(this.routingControl);
+        this.routingControl = null;
+      }
+    },
     addLayerView: function(model) {
       this.layerViews[model.cid] = new S.LayerView({
         model: model,

@@ -141,6 +141,12 @@ var Shareabouts = Shareabouts || {};
         placeTypes: this.options.placeTypes
       });
 
+      // When a place detail's Directions button is clicked, start live
+      // routing from the user's location to the place.
+      $(S).on('getdirections', function(evt, destLatLng) {
+        self.mapView.startDirections(destLatLng);
+      });
+
       // When the user chooses a geocoded address, the address view will fire
       // a geocode event on the namespace. At that point we center the map on
       // the geocoded location.
@@ -411,6 +417,9 @@ var Shareabouts = Shareabouts || {};
       var self = this,
           ll;
 
+      // Clear any active directions route when returning to the map
+      this.mapView.stopDirections();
+
       // If the map locatin is part of the url already
       if (zoom && lat && lng) {
         ll = L.latLng(parseFloat(lat), parseFloat(lng));
@@ -445,6 +454,9 @@ var Shareabouts = Shareabouts || {};
       onPlaceFound = function(model) {
         var map = self.mapView.map,
             layer, center, placeDetailView, $responseToScrollTo;
+
+        // Clear any directions from a previously viewed place
+        self.mapView.stopDirections();
 
         // If this model is a duplicate of one that already exists in the
         // places collection, it may not correspond to a layerView. For this

@@ -48,6 +48,11 @@ var Shareabouts = Shareabouts || {};
 
       this.$el.on('click', '.toggle-visibility', _.bind(this.onToggleVisibility, this));
     this.$el.on('click', '.delete-place', _.bind(this.onDeletePlace, this));
+
+      this.$el.on('click', '.get-directions', function(evt) {
+        evt.preventDefault();
+        $(S).trigger('getdirections', [L.latLng(+$(this).data('lat'), +$(this).data('lng'))]);
+      });
     },
 
     getTemplateContext: function(isNew) {
@@ -93,6 +98,7 @@ var Shareabouts = Shareabouts || {};
     remove: function() {
       this.model.off('change', this.onChange);
       this.$el.off('click', '.share-link a');
+      this.$el.off('click', '.get-directions');
     },
 
     onChange: function() {
