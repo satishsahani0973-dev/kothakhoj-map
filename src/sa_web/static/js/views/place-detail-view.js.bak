@@ -47,7 +47,6 @@ var Shareabouts = Shareabouts || {};
       });
 
       this.$el.on('click', '.toggle-visibility', _.bind(this.onToggleVisibility, this));
-    this.$el.on('click', '.delete-place', _.bind(this.onDeletePlace, this));
     },
 
     getTemplateContext: function(isNew) {
@@ -72,12 +71,6 @@ var Shareabouts = Shareabouts || {};
 
       this.$el.html(Handlebars.templates['place-detail'](data));
 
-    if (this.options.userToken && this.model.get('user_token') === this.options.userToken) {
-      this.$el.find('.place-header').after(
-        $('<div class="place-delete-bar"><button class="delete-place btn">Delete this place</button></div>')
-      );
-    }
-
       // Render the view as-is (collection may have content already)
       this.$('.survey').html(this.surveyView.render().$el);
       // Fetch for submissions and automatically update the element
@@ -97,29 +90,6 @@ var Shareabouts = Shareabouts || {};
 
     onChange: function() {
       this.render();
-    },
-
-    onDeletePlace: function(evt) {
-      var self = this;
-      if (!confirm('Are you sure you want to delete this place? This cannot be undone.')) { return; }
-
-      var $button = this.$(evt.target);
-      $button.attr('disabled', 'disabled');
-
-      this.model.destroy({
-        wait: true,
-        success: function() {
-  S.Util.log('USER', 'deleted-place', 'successfully-deleted-place');
-  self.remove();                    // tear down this detail view cleanly
-  S.Util.log('APP', 'panel-state', 'close');
-  Backbone.history.navigate('/', { trigger: true });   // soft route home, no full reload
-},
-        error: function() {
-          S.Util.log('USER', 'deleted-place', 'fail-to-delete-place');
-          alert('Could not delete this place. Please try again.');
-          $button.removeAttr('disabled');
-        }
-      });
     },
 
     onToggleVisibility: function(evt) {

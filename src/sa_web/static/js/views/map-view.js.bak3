@@ -71,7 +71,7 @@ var Shareabouts = Shareabouts || {};
       }
 
       if (self.options.mapConfig.geocoding_enabled) {
-        // self.initGeocoding(); // merged into initLocalSearch above
+        self.initGeocoding();
       }
 
       self.map.addLayer(self.placeLayers);
@@ -183,34 +183,69 @@ var Shareabouts = Shareabouts || {};
     },
     initLocalSearch: function() {
       var self = this;
+      
+      var loadFuse = function() {
+        var data = (typeof LOCAL_PLACES !== 'undefined') ? LOCAL_PLACES : [];
+        self.localFuse = new Fuse(data, { keys: ['name'], threshold: 0.4 });
+      };
+
+      if (typeof Fuse === 'undefined') {
+        var script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.6.2/fuse.min.js';
+        script.onload = loadFuse;
+        document.head.appendChild(script);
+      } else {
+        loadFuse();
+      }
+
+      var $box = $(
+        '<div class="local-search-box" style="position:absolute; z-index:1200; top:60px; left:10px; background:white; border-radius:4px; box-shadow:0 1px 5px rgba(0,0,0,0.4);">' +
+          '<input type="text" placeholder="Search local places..." style="width:240px; padding:8px; border:none; outline:none; border-radius:4px;">' +
+          '<div class="local-search-results" style="background:white;"></div>' +
+        '</div>'
+      );
+      $(self.el).append($box);
+
+      var $input = $box.find('input');
+      var $results = $box.find('.local-search-results');
+
+      $input.on('input', function() {
+        var query = $(this).val();
+        $results.empty();
+        if (!query || !self.localFuse) { return; }
+
+        var matches = self.localFuse.search(query).slice(0, 6);
+        matches.forEach(function(m) {
+          var place = m.item;
+          var $item = $('<div style="padding:8px; cursor:pointer; border-top:1px solid #eee;">' + place.name + '</div>');
+          $item.on('click', function() {
+            self.map.setView([place.lat, place.lng], 17);
+            $input.val(place.name);
+            $results.empty();
+          });
+          $results.append($item);
+        });
+      });
+    },
+    initLocalSearch: function() {
+      var self = this;
       var SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTgmcyTZFZwmOXuMdam-su8Zq-GIs42qhJXS0G-jmZ6Fi9MUfQseKakGXKiH2ATNvrn2ESTQE1aGRvj/pub?gid=0&single=true&output=csv";
 
-      function geocodeMapbox(query, callback) {
-        var params = {
-          access_token: S.bootstrapped.mapboxToken,
-          country: 'np',
-          proximity: [
-            self.options.mapConfig.options.center.lng,
-            self.options.mapConfig.options.center.lat
-          ].join(','),
-          bbox: '83.35,27.45,83.55,27.75',
-          limit: 5
-        };
-        $.getJSON('https://api.mapbox.com/geocoding/v5/mapbox.places/' + encodeURIComponent(query) + '.json', params)
-          .done(function(data) {
-            var results = (data.features || []).map(function(f) {
-              var center = L.latLng(f.center[1], f.center[0]);
-              var bounds = f.bbox ?
-                L.latLngBounds(L.latLng(f.bbox[1], f.bbox[0]), L.latLng(f.bbox[3], f.bbox[2])) :
-                L.latLngBounds(center, center);
-              return { name: f.place_name, center: center, bbox: bounds };
-            });
-            callback(results);
-          })
-          .fail(function() {
-            console.log('Mapbox geocode request failed for query:', query);
-            callback([]);
+      var places = [];
+
+      function parseCSV(text) {
+        var lines = text.trim().split('\n');
+        var headers = lines[0].split(',').map(function(h) { return h.trim().toLowerCase(); });
+        var rows = [];
+        for (var i = 1; i < lines.length; i++) {
+          var cols = lines[i].split(',');
+          var row = {};
+          headers.forEach(function(h, idx) {
+            row[h] = cols[idx] ? cols[idx].trim() : '';
           });
+          rows.push(row);
+        }
+        return rows;
       }
 
       var places = [];
@@ -271,27 +306,29 @@ var Shareabouts = Shareabouts || {};
       setupFuseAndData();
 
       var $box = $(
-        '<div class="merged-search-box" style="position:absolute; z-index:1200; top:70px; left:50%; transform:translateX(-50%); background:white; border-radius:4px; box-shadow:0 1px 5px rgba(0,0,0,0.4);">' +
-          '<input type="text" placeholder="Search places or addresses..." style="width:320px; padding:10px; border:none; outline:none; border-radius:4px; font-size:15px;">' +
-          '<div class="merged-search-results" style="background:white;"></div>' +
+        '<div class="local-search-box" style="position:absolute; z-index:1200; top:60px; left:10px; background:white; border-radius:4px; box-shadow:0 1px 5px rgba(0,0,0,0.4);">' +
+          '<input type="text" placeholder="Search local places..." style="width:240px; padding:8px; border:none; outline:none; border-radius:4px;">' +
+          '<div class="local-search-results" style="background:white;"></div>' +
         '</div>'
       );
       $(self.el).append($box);
 
       var $input = $box.find('input');
-      var $results = $box.find('.merged-search-results');
-      var geocodeTimer = null;
+      var $results = $box.find('.local-search-results');
 
-      function renderResults(localMatches, mapboxMatches) {
+      $input.on('input', function() {
+        var query = $(this).val();
         $results.empty();
-        var seen = {};
+        if (!query || !self.localFuse) { return; }
 
-        localMatches.forEach(function(m) {
+        var matches = self.localFuse.search(query).slice(0, 6);
+        var seen = {};
+        matches.forEach(function(m) {
           var place = m.item;
           var label = place.displayName || place.name;
           if (seen[label]) { return; }
           seen[label] = true;
-          var $item = $('<div style="padding:8px; cursor:pointer; border-top:1px solid #eee;">\uD83D\uDCCD ' + label + '</div>');
+          var $item = $('<div style="padding:8px; cursor:pointer; border-top:1px solid #eee;">' + label + '</div>');
           $item.on('click', function() {
             self.map.setView([place.lat, place.lng], 17);
             $input.val(label);
@@ -299,36 +336,8 @@ var Shareabouts = Shareabouts || {};
           });
           $results.append($item);
         });
-
-        mapboxMatches.forEach(function(result) {
-          var $item = $('<div style="padding:8px; cursor:pointer; border-top:1px solid #eee;">\uD83C\uDF0D ' + result.name + '</div>');
-          $item.on('click', function() {
-            var zoom = self.map.getBoundsZoom(result.bbox);
-            self.map.setView(result.center, zoom);
-            $input.val(result.name);
-            $results.empty();
-          });
-          $results.append($item);
-        });
-      }
-
-      $input.on('input', function() {
-        var query = $(this).val();
-        $results.empty();
-        if (!query) { return; }
-
-        var localMatches = self.localFuse ? self.localFuse.search(query).slice(0, 5) : [];
-        renderResults(localMatches, []);
-
-        clearTimeout(geocodeTimer);
-        geocodeTimer = setTimeout(function() {
-          geocodeMapbox(query, function(mapboxResults) {
-            renderResults(localMatches, mapboxResults);
-          });
-        }, 400);
       });
     },
-
     initGeocoding: function() {
       var geocoder;
       var control;
