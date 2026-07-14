@@ -233,7 +233,9 @@ place:
       attrs:
         - key: required
     - prompt: _(Contact Number)
+      label: _(Contact Number)
       type: text
+      optional: true
       name: contact_number
       attrs:
         - key: placeholder
@@ -246,22 +248,7 @@ place:
           value: '[9][6-9][0-9]{8}'
         - key: title
           value: _(Please enter a valid Nepal mobile number starting with 98 or 97 or 96)
-        - key: required
-    - prompt: _(All that apply questiion)
-      type: checkboxgroup
-      sticky: true
-      options:
-        - label: _(First)
-          value: option1
-        - label: _(Second)
-          value: option2
-        - label: _(Third)
-          value: option3
-        - label: _(Fourth)
-          value: option4
-      name: all_that_apply
-      attrs:
-        - key: required
+   
     - prompt: _(Description)
       type: textarea
       name: description
@@ -304,30 +291,6 @@ survey:
       label: _(Comment)
       type: textarea
       name: comment
-      attrs:
-        - key: required
-    - prompt: _(Yes or no question)
-      type: radiogroup
-      options:
-        - label: _(Indeed)
-          value: yeah
-        - label: _(I don't think so)
-          value: nah
-      name: y_or_n
-      attrs:
-        - key: required
-    - prompt: _(All that apply questiion)
-      type: checkboxgroup
-      options:
-        - label: _(First)
-          value: option1
-        - label: _(Second)
-          value: option2
-        - label: _(Third)
-          value: option3
-        - label: _(Fourth)
-          value: option4
-      name: all_that_apply
       attrs:
         - key: required
     - prompt: _(Your Name)
