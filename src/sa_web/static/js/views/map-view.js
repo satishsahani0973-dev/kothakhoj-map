@@ -157,7 +157,7 @@ var Shareabouts = Shareabouts || {};
       var onLocationFound = function(evt) {
         var msg;
         if(!self.map.options.maxBounds ||self.map.options.maxBounds.contains(evt.latlng)) {
-          self.map.fitBounds(evt.bounds);
+          self.map.setView(evt.latlng, 18);
         } else {
           msg = 'It looks like you\'re not in a place where we\'re collecting ' +
             'data. I\'m going to leave the map where it is, okay?';
@@ -385,7 +385,7 @@ var Shareabouts = Shareabouts || {};
       this.geolocate();
     },
     geolocate: function() {
-      this.map.locate();
+      this.map.locate({ enableHighAccuracy: true, maximumAge: 0 });
     },
     startDirections: function(destLatLng) {
       var self = this;
