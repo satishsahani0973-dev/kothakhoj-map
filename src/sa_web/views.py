@@ -2,6 +2,8 @@ import dateutil.parser
 import ujson as json
 import logging
 import os
+import re
+import requests
 import time
 import hashlib
 
@@ -430,6 +432,25 @@ def api(request, path):
 
     api_key = settings.SHAREABOUTS.get('DATASET_KEY')
     api_session_cookie = request.COOKIES.get('sa-api-sessionid')
+
+    # Server-side ownership check: only the creator of a place (same session
+    # user_token) may delete it. The browser check alone can be bypassed.
+    place_match = re.match(r'^places/(\d+)/?$', path)
+    if request.method == 'DELETE' and place_match:
+        session_token = request.session.get('user_token')
+        owner_token = None
+        try:
+            lookup = requests.get(
+                make_resource_uri(path, root),
+                headers={'X-Shareabouts-Key': api_key},
+                timeout=10)
+            if lookup.status_code == 200:
+                owner_token = (lookup.json().get('properties') or {}).get('user_token')
+        except Exception:
+            logging.getLogger(__name__).exception('Owner lookup failed during place delete')
+            return HttpResponse('Could not verify ownership', status=403)
+        if not session_token or not owner_token or owner_token != session_token:
+            return HttpResponse('Forbidden', status=403)
 
     # It doesn't matter what the CSRF token value is, as long as the cookie and
     # header value match.
