@@ -50,17 +50,33 @@ var Shareabouts = Shareabouts || {};
         // Construct an appropriate layer based on the model geometry and the
         // style rule. If the place is focused, use the 'focus_' portion of
         // the style rule if it exists.
+        // Is this one of the current user's own places? If so, render it in
+        // gold so they can spot their own places at a glance.
+        var isMine = S.Util.isMyPlace(this.model, this.options.userToken);
+
         geom = this.model.get('geometry');
         if (geom.type === 'Point') {
           this.latLng = L.latLng(geom.coordinates[1], geom.coordinates[0]);
           if (this.hasIcon()) {
-            this.layer = (this.isFocused && this.styleRule.focus_icon ?
-              L.marker(this.latLng, {icon: L.icon(this.styleRule.focus_icon), alt: this.placeType.label}) :
-              L.marker(this.latLng, {icon: L.icon(this.styleRule.icon), alt: this.placeType.label}));
+            var iconDef = (this.isFocused && this.styleRule.focus_icon) ?
+              this.styleRule.focus_icon : this.styleRule.icon;
+            if (isMine) {
+              // Clone the icon definition (don't mutate the shared config) and
+              // swap the image for the matching gold marker.
+              iconDef = _.extend({}, iconDef, {
+                iconUrl: /dot-/.test(iconDef.iconUrl) ?
+                  '/static/css/images/markers/dot-gold.png' :
+                  '/static/css/images/markers/marker-gold.png'
+              });
+            }
+            this.layer = L.marker(this.latLng, {icon: L.icon(iconDef), alt: this.placeType.label});
           } else if (this.hasStyle()) {
-            this.layer = (this.isFocused && this.styleRule.focus_style ?
-              L.circleMarker(this.latLng, {...this.styleRule.focus_style, alt: this.placeType.label}) :
-              L.circleMarker(this.latLng, {...this.styleRule.style, alt: this.placeType.label}));
+            var styleDef = (this.isFocused && this.styleRule.focus_style) ?
+              this.styleRule.focus_style : this.styleRule.style;
+            if (isMine) {
+              styleDef = _.extend({}, styleDef, {color: '#E0A400', fillColor: '#E0A400'});
+            }
+            this.layer = L.circleMarker(this.latLng, {...styleDef, alt: this.placeType.label});
           }
         } else {
           this.layer = L.GeoJSON.geometryToLayer(geom);

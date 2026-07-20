@@ -68,6 +68,31 @@ var Shareabouts = Shareabouts || {};
     // forms. NOTE that the cache is shared between both forms, so, for example,
     // `submitter_name` in both places will have a shared default value (if
     // sticky: true in config.yml).
+    // Durable record of the IDs of places this browser created, so we can
+    // highlight "my places" on the map even after the session token rotates.
+    getMyPlaceIds: function() {
+      if (!window.localStorage) { return []; }
+      try {
+        return JSON.parse(window.localStorage.getItem('myPlaceIds')) || [];
+      } catch (e) {
+        return [];
+      }
+    },
+    addMyPlaceId: function(id) {
+      if (!window.localStorage || id == null) { return; }
+      var ids = S.Util.getMyPlaceIds();
+      if (ids.indexOf(id) === -1) {
+        ids.push(id);
+        window.localStorage.setItem('myPlaceIds', JSON.stringify(ids));
+      }
+    },
+    isMyPlace: function(model, userToken) {
+      var placeToken = model.get && model.get('user_token');
+      if (userToken && placeToken && placeToken === userToken) { return true; }
+      var id = model.id || (model.get && model.get('id'));
+      return id != null && S.Util.getMyPlaceIds().indexOf(id) !== -1;
+    },
+
     getStickyFields: function(userToken) {
       // If local storage is available, retrieve the sticky field values from
       // there. Otherwise, use a cache in memory.

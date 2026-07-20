@@ -181,6 +181,9 @@ var Shareabouts = Shareabouts || {};
           model = this.model,
           newPlaceUrl = '/place/' + model.id + '/new';
 
+      // Remember this place as one of "mine" so it can be highlighted on the map.
+      S.Util.addMyPlaceId(model.id);
+
       // Redirect to the new-place page
       S.Util.log('USER', 'new-place', 'successfully-add-place');
       router.navigate(newPlaceUrl, {trigger: true});

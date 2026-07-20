@@ -138,13 +138,20 @@ var Shareabouts = Shareabouts || {};
         mapConfig: this.options.mapConfig,
         collection: this.collection,
         router: this.options.router,
-        placeTypes: this.options.placeTypes
+        placeTypes: this.options.placeTypes,
+        userToken: this.options.userToken
       });
 
       // When a place detail's Directions button is clicked, start live
-      // routing from the user's location to the place.
+      // routing from the user's location to the place. Clicking Directions
+      // again for the same place stops the route (toggle).
       $(S).on('getdirections', function(evt, destLatLng) {
-        self.mapView.startDirections(destLatLng);
+        var mv = self.mapView;
+        if (mv.routingControl && mv.routingDest && mv.routingDest.equals(destLatLng)) {
+          mv.stopDirections();
+        } else {
+          mv.startDirections(destLatLng);
+        }
       });
 
       // When the user chooses a geocoded address, the address view will fire
@@ -417,8 +424,9 @@ var Shareabouts = Shareabouts || {};
       var self = this,
           ll;
 
-      // Clear any active directions route when returning to the map
-      this.mapView.stopDirections();
+      // Note: an active directions route intentionally survives closing the
+      // place panel, so the user can follow it on a clean map. It is ended
+      // via the on-map End Route button or by toggling/starting another route.
 
       // If the map locatin is part of the url already
       if (zoom && lat && lng) {
@@ -454,9 +462,6 @@ var Shareabouts = Shareabouts || {};
       onPlaceFound = function(model) {
         var map = self.mapView.map,
             layer, center, placeDetailView, $responseToScrollTo;
-
-        // Clear any directions from a previously viewed place
-        self.mapView.stopDirections();
 
         // If this model is a duplicate of one that already exists in the
         // places collection, it may not correspond to a layerView. For this

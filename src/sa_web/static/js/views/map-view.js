@@ -396,18 +396,74 @@ var Shareabouts = Shareabouts || {};
         return;
       }
 
+      this.routingDest = destLatLng;
+
       navigator.geolocation.getCurrentPosition(function(pos) {
+        // The user may have ended the route while we waited for the GPS fix
+        if (!self.routingDest) { return; }
+
         var here = L.latLng(pos.coords.latitude, pos.coords.longitude);
+
+        // Ask Mapbox for the walking route plus alternatives, then choose the
+        // one with the shortest total distance (the shortest path). Walking
+        // uses footpaths and lanes, so it is the shortest door-to-door route.
+        var baseRouter = L.Routing.mapbox(S.bootstrapped.mapboxToken, {
+          profile: 'mapbox/walking',
+          alternatives: true
+        });
+        var shortestRouter = {
+          route: function(waypoints, callback, context, options) {
+            baseRouter.route(waypoints, function(err, routes) {
+              if (!err && routes && routes.length > 1) {
+                routes.sort(function(a, b) {
+                  return a.summary.totalDistance - b.summary.totalDistance;
+                });
+              }
+              callback.call(context, err, routes);
+            }, context, options);
+          }
+        };
 
         self.routingControl = L.Routing.control({
           waypoints: [here, destLatLng],
-          router: L.Routing.mapbox(S.bootstrapped.mapboxToken, { profile: 'mapbox/walking' }),
+          router: shortestRouter,
           fitSelectedRoutes: true,
           addWaypoints: false,
           draggableWaypoints: false,
           show: false,
           collapsible: true
         }).addTo(self.map);
+
+        // Fit the map to the route once, then leave the user's view alone
+        // while they move (no re-zoom on every re-route).
+        self.routingControl.on('routesfound', function() {
+          if (self.routingControl) {
+            self.routingControl.options.fitSelectedRoutes = false;
+          }
+        });
+
+        self.routingControl.on('routingerror', function() {
+          self.stopDirections();
+          alert('Could not find a route to this place.');
+        });
+
+        // Floating End Route button on the map (visible while routing)
+        self.$endRouteControl = $(
+          '<div class="leaflet-control leaflet-bar end-route-control">' +
+            '<a href="#" role="button" title="End route" aria-label="End route"' +
+              ' style="width:auto; padding:0 10px; font-weight:bold;' +
+              ' color:#c0392b; white-space:nowrap;">&#10005; End Route</a>' +
+          '</div>'
+        );
+        self.$endRouteControl.on('click', 'a', function(evt) {
+          evt.preventDefault();
+          evt.stopPropagation();
+          self.stopDirections();
+        });
+        self.$endRouteControl.on('mousedown dblclick touchstart', function(evt) {
+          evt.stopPropagation();
+        });
+        self.$('.leaflet-top.leaflet-right').append(self.$endRouteControl);
 
         var lastRouted = here;
         self.geoWatchId = navigator.geolocation.watchPosition(function(pos) {
@@ -423,6 +479,7 @@ var Shareabouts = Shareabouts || {};
         }, null, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
 
       }, function(err) {
+        self.stopDirections();
         alert('Could not get your location: ' + err.message);
       }, { enableHighAccuracy: true, timeout: 15000 });
     },
@@ -435,6 +492,11 @@ var Shareabouts = Shareabouts || {};
         this.map.removeControl(this.routingControl);
         this.routingControl = null;
       }
+      if (this.$endRouteControl) {
+        this.$endRouteControl.remove();
+        this.$endRouteControl = null;
+      }
+      this.routingDest = null;
     },
     addLayerView: function(model) {
       this.layerViews[model.cid] = new S.LayerView({
@@ -443,8 +505,31 @@ var Shareabouts = Shareabouts || {};
         map: this.map,
         placeLayers: this.placeLayers,
         placeTypes: this.options.placeTypes,
+        userToken: this.options.userToken,
         mapView: this
       });
+      this.updateMyPlacesLegend();
+    },
+    updateMyPlacesLegend: function() {
+      var self = this;
+      // Show a small "Yours" legend only when at least one of the user's own
+      // places is on the map (so the gold color explains itself).
+      var hasMine = this.collection.some(function(model) {
+        return S.Util.isMyPlace(model, self.options.userToken);
+      });
+      if (hasMine && !this.$myLegend) {
+        this.$myLegend = $(
+          '<div class="leaflet-control leaflet-bar my-places-legend"' +
+          ' style="background:#fff; padding:4px 9px; font-size:12px; color:#7a5900;' +
+          ' display:flex; align-items:center; gap:5px; box-shadow:0 1px 4px rgba(0,0,0,0.3);">' +
+          '<span style="width:11px; height:11px; border-radius:50%; background:#E0A400;' +
+          ' display:inline-block;"></span>Yours</div>'
+        );
+        this.$('.leaflet-top.leaflet-left').append(this.$myLegend);
+      } else if (!hasMine && this.$myLegend) {
+        this.$myLegend.remove();
+        this.$myLegend = null;
+      }
     },
     removeLayerView: function(model) {
       this.layerViews[model.cid].remove();
