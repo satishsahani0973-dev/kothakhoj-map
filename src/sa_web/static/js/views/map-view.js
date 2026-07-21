@@ -139,8 +139,13 @@ var Shareabouts = Shareabouts || {};
     initGeolocation: function() {
       var self = this;
 
+      var resetLocateButton = function() {
+        self.$('.locate-me').removeClass('locating').text('My Location');
+      };
+
       var onLocationError = function(evt) {
         var message;
+        resetLocateButton();
         switch (evt.code) {
           // Unknown
           case 0:
@@ -164,8 +169,13 @@ var Shareabouts = Shareabouts || {};
 
       var onLocationFound = function(evt) {
         var msg;
+        resetLocateButton();
         if(!self.map.options.maxBounds ||self.map.options.maxBounds.contains(evt.latlng)) {
           self.map.setView(evt.latlng, 18);
+          // Let the app know the user located themselves, so that if the
+          // add-place form is open, the pin can be set to this spot right away
+          // (no need to drag the map first).
+          $(S).trigger('userlocated', [evt.latlng]);
         } else {
           msg = 'It looks like you\'re not in a place where we\'re collecting ' +
             'data. I\'m going to leave the map where it is, okay?';
@@ -175,8 +185,8 @@ var Shareabouts = Shareabouts || {};
 
       // Add the geolocation control link
       this.$('.leaflet-top.leaflet-right').append(
-        '<div class="leaflet-control leaflet-bar">' +
-          '<a href="#" class="locate-me" role="button" title="Center on my location" aria-label="Center on my location"></a>' +
+        '<div class="leaflet-control leaflet-bar locate-control">' +
+          '<a href="#" class="locate-me" role="button" title="Center on my location" aria-label="Center on my location">My Location</a>' +
         '</div>'
       );
 
@@ -390,6 +400,8 @@ var Shareabouts = Shareabouts || {};
     onClickGeolocate: function(evt) {
       evt.preventDefault();
       S.Util.log('USER', 'map', 'geolocate', this.map.getBounds().toBBoxString(), this.map.getZoom());
+      // Immediate feedback while GPS is working (it can take several seconds).
+      this.$('.locate-me').addClass('locating').text('Locating…');
       this.geolocate();
     },
     geolocate: function() {

@@ -47,3 +47,33 @@
   border-color: #157a41 !important;
   color: #fff !important;
 }
+
+/* "My Location" pill button */
+#map .leaflet-control.locate-control {
+  border: none;
+  box-shadow: none;
+}
+#map .leaflet-bar a.locate-me {
+  width: auto !important;
+  height: 34px !important;
+  line-height: 34px !important;
+  padding: 0 14px 0 33px;
+  background-position: 11px center;
+  background-size: 15px 15px;
+  background-repeat: no-repeat;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: bold;
+  color: #1a73e8;
+  text-align: left;
+  border-radius: 18px !important;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.3);
+}
+#map .leaflet-bar a.locate-me:hover {
+  background-color: #f4f8ff;
+  color: #1558b0;
+}
+#map .leaflet-bar a.locate-me.locating {
+  color: #888;
+  opacity: 0.85;
+}

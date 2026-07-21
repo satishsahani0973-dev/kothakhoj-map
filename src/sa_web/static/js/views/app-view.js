@@ -142,6 +142,16 @@ var Shareabouts = Shareabouts || {};
         userToken: this.options.userToken
       });
 
+      // When the user clicks "My Location" while adding a place, place the
+      // pin on their location immediately so they can submit without having
+      // to drag the map (the pin stays freely draggable afterwards).
+      $(S).on('userlocated', function(evt, latLng) {
+        if (self.placeFormView && self.hasBodyClass('place-form-visible')) {
+          self.setPlaceFormViewLatLng(latLng);
+          self.conditionallyReverseGeocode();
+        }
+      });
+
       // When a place detail's Directions button is clicked, start live
       // routing from the user's location to the place. Clicking Directions
       // again for the same place stops the route (toggle).
