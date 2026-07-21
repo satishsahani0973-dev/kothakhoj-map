@@ -20,3 +20,30 @@
 
 @media only screen and (min-width: 1300px) {
 }
+/* "Yours" label above the user's own gold markers */
+.leaflet-tooltip.my-place-tooltip {
+  background: #E0A400;
+  border: none;
+  color: #412402;
+  font-weight: bold;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.35);
+}
+.leaflet-tooltip-top.my-place-tooltip::before {
+  border-top-color: #E0A400;
+}
+
+/* Highlighted "Directions" button (green = go / navigate) */
+.get-directions {
+  background: #1a9850 !important;
+  border-color: #1a9850 !important;
+  color: #fff !important;
+  font-weight: bold;
+}
+.get-directions:hover {
+  background: #157a41 !important;
+  border-color: #157a41 !important;
+  color: #fff !important;
+}

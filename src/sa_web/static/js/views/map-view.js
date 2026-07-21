@@ -103,6 +103,14 @@ var Shareabouts = Shareabouts || {};
       self.collection.on('reset', self.render, self);
       self.collection.on('add', self.addLayerView, self);
       self.collection.on('remove', self.removeLayerView, self);
+
+      // When the user saves a new place, immediately repaint that marker gold
+      // (and refresh the "Yours" legend) without waiting for a map move.
+      $(S).on('myplacesaved', function(evt, model) {
+        var lv = self.layerViews[model.cid];
+        if (lv) { lv.updateLayer(); }
+        self.updateMyPlacesLegend();
+      });
     },
     reverseGeocodeMapCenter: _.debounce(function() {
       var center = this.map.getCenter();
@@ -398,72 +406,75 @@ var Shareabouts = Shareabouts || {};
 
       this.routingDest = destLatLng;
 
+      // Show immediate feedback (and a cancel button) while GPS is searching.
+      this.$endRouteControl = $(
+        '<div class="leaflet-control leaflet-bar end-route-control">' +
+          '<a href="#" role="button" title="End route" aria-label="End route"' +
+            ' style="width:auto; padding:0 10px; font-weight:bold;' +
+            ' color:#c0392b; white-space:nowrap;">Locating&hellip;</a>' +
+        '</div>'
+      );
+      this.$endRouteControl.on('click', 'a', function(evt) {
+        evt.preventDefault();
+        evt.stopPropagation();
+        self.stopDirections();
+      });
+      this.$endRouteControl.on('mousedown dblclick touchstart', function(evt) {
+        evt.stopPropagation();
+      });
+      this.$('.leaflet-top.leaflet-right').append(this.$endRouteControl);
+
       navigator.geolocation.getCurrentPosition(function(pos) {
-        // The user may have ended the route while we waited for the GPS fix
-        if (!self.routingDest) { return; }
+        // Ignore this result if the user ended the route, or started a newer
+        // one to a different place, while we waited for the GPS fix.
+        if (self.routingDest !== destLatLng) { return; }
 
         var here = L.latLng(pos.coords.latitude, pos.coords.longitude);
 
-        // Ask Mapbox for the walking route plus alternatives, then choose the
-        // one with the shortest total distance (the shortest path). Walking
-        // uses footpaths and lanes, so it is the shortest door-to-door route.
-        var baseRouter = L.Routing.mapbox(S.bootstrapped.mapboxToken, {
-          profile: 'mapbox/walking',
-          alternatives: true
-        });
-        var shortestRouter = {
-          route: function(waypoints, callback, context, options) {
-            baseRouter.route(waypoints, function(err, routes) {
-              if (!err && routes && routes.length > 1) {
-                routes.sort(function(a, b) {
-                  return a.summary.totalDistance - b.summary.totalDistance;
-                });
+        // Build the route for a given travel profile. Walking gives the
+        // shortest door-to-door path for nearby places, but Mapbox walking
+        // has a maximum distance; if it fails, fall back to driving once.
+        var makeRoute = function(profile, isFallback) {
+          self.routingControl = L.Routing.control({
+            waypoints: [here, destLatLng],
+            router: L.Routing.mapbox(S.bootstrapped.mapboxToken, { profile: 'mapbox/' + profile }),
+            fitSelectedRoutes: true,
+            addWaypoints: false,
+            draggableWaypoints: false,
+            show: false,
+            collapsible: true
+          }).addTo(self.map);
+
+          // Fit the map to the route once, then leave the user's view alone
+          // while they move (no re-zoom on every re-route).
+          self.routingControl.on('routesfound', function() {
+            if (self.routingControl) {
+              self.routingControl.options.fitSelectedRoutes = false;
+            }
+          });
+
+          self.routingControl.on('routingerror', function() {
+            if (!isFallback) {
+              // Walking route failed (usually too far) - try driving instead.
+              if (self.routingControl) {
+                self.map.removeControl(self.routingControl);
+                self.routingControl = null;
               }
-              callback.call(context, err, routes);
-            }, context, options);
-          }
+              makeRoute('driving', true);
+            } else {
+              self.stopDirections();
+              alert('Could not find a route to this place.');
+            }
+          });
         };
 
-        self.routingControl = L.Routing.control({
-          waypoints: [here, destLatLng],
-          router: shortestRouter,
-          fitSelectedRoutes: true,
-          addWaypoints: false,
-          draggableWaypoints: false,
-          show: false,
-          collapsible: true
-        }).addTo(self.map);
+        makeRoute('walking', false);
 
-        // Fit the map to the route once, then leave the user's view alone
-        // while they move (no re-zoom on every re-route).
-        self.routingControl.on('routesfound', function() {
-          if (self.routingControl) {
-            self.routingControl.options.fitSelectedRoutes = false;
-          }
-        });
-
-        self.routingControl.on('routingerror', function() {
-          self.stopDirections();
-          alert('Could not find a route to this place.');
-        });
-
-        // Floating End Route button on the map (visible while routing)
-        self.$endRouteControl = $(
-          '<div class="leaflet-control leaflet-bar end-route-control">' +
-            '<a href="#" role="button" title="End route" aria-label="End route"' +
-              ' style="width:auto; padding:0 10px; font-weight:bold;' +
-              ' color:#c0392b; white-space:nowrap;">&#10005; End Route</a>' +
-          '</div>'
-        );
-        self.$endRouteControl.on('click', 'a', function(evt) {
-          evt.preventDefault();
-          evt.stopPropagation();
-          self.stopDirections();
-        });
-        self.$endRouteControl.on('mousedown dblclick touchstart', function(evt) {
-          evt.stopPropagation();
-        });
-        self.$('.leaflet-top.leaflet-right').append(self.$endRouteControl);
+        // Route is being calculated: flip the control from "Locating" to the
+        // real End Route label.
+        if (self.$endRouteControl) {
+          self.$endRouteControl.find('a').html('&#10005; End Route');
+        }
 
         var lastRouted = here;
         self.geoWatchId = navigator.geolocation.watchPosition(function(pos) {
@@ -510,7 +521,7 @@ var Shareabouts = Shareabouts || {};
       });
       this.updateMyPlacesLegend();
     },
-    updateMyPlacesLegend: function() {
+    updateMyPlacesLegend: _.debounce(function() {
       var self = this;
       // Show a small "Yours" legend only when at least one of the user's own
       // places is on the map (so the gold color explains itself).
@@ -530,7 +541,7 @@ var Shareabouts = Shareabouts || {};
         this.$myLegend.remove();
         this.$myLegend = null;
       }
-    },
+    }, 150),
     removeLayerView: function(model) {
       this.layerViews[model.cid].remove();
       delete this.layerViews[model.cid];

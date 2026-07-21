@@ -181,8 +181,10 @@ var Shareabouts = Shareabouts || {};
           model = this.model,
           newPlaceUrl = '/place/' + model.id + '/new';
 
-      // Remember this place as one of "mine" so it can be highlighted on the map.
+      // Remember this place as one of "mine" so it can be highlighted on the
+      // map, and tell the map to repaint it gold right away.
       S.Util.addMyPlaceId(model.id);
+      $(S).trigger('myplacesaved', [model]);
 
       // Redirect to the new-place page
       S.Util.log('USER', 'new-place', 'successfully-add-place');

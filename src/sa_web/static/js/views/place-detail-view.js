@@ -77,7 +77,9 @@ var Shareabouts = Shareabouts || {};
 
       this.$el.html(Handlebars.templates['place-detail'](data));
 
-    if (this.options.userToken && this.model.get('user_token') === this.options.userToken) {
+    // Show the delete button whenever this is one of the user's own places,
+    // using the same rule as the gold "Yours" marker so the two never disagree.
+    if (S.Util.isMyPlace(this.model, this.options.userToken)) {
       this.$el.find('.place-header').after(
         $('<div class="place-delete-bar"><button class="delete-place btn">Delete this place</button></div>')
       );

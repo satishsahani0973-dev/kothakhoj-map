@@ -86,6 +86,16 @@ var Shareabouts = Shareabouts || {};
         // Focus on the layer onclick
         if (this.layer) {
           this.layer.on('click', this.onMarkerClick, this);
+
+          // Label the user's own places with a small "Yours" tag.
+          if (isMine && this.layer.bindTooltip) {
+            this.layer.bindTooltip('Yours', {
+              permanent: true,
+              direction: 'top',
+              offset: [0, -8],
+              className: 'my-place-tooltip'
+            });
+          }
         }
 
         this.render();

@@ -36,7 +36,7 @@ map:
       lng: 83.45
     zoom: 14
     minZoom: 10
-    maxZoom: 17
+    maxZoom: 20
     scrollWheelZoom: false
   layers:
     # Raster Tile Layers
@@ -322,6 +322,14 @@ pages:
       - title: _(Features)
         slug: features
         url: /static/pages/features.html
+
+      - title: _(Terms of Use)
+        slug: terms
+        name: terms
+
+      - title: _(Privacy Policy)
+        slug: privacy
+        name: privacy
   - title: Filter Places
     slug: filter-type
     pages:
@@ -337,6 +345,10 @@ pages:
       - title: _(Flat)
         url: /filter/flat
         external: true
+
+  - title: _(Contact)
+    slug: contact
+    name: contact
 
 notifications:
   on_new_place: true
