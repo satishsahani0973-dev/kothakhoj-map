@@ -439,17 +439,38 @@ def api(request, path):
     if request.method == 'DELETE' and place_match:
         session_token = request.session.get('user_token')
         owner_token = None
+        owner_username = None
         try:
             lookup = requests.get(
                 make_resource_uri(path, root),
                 headers={'X-Shareabouts-Key': api_key},
                 timeout=10)
             if lookup.status_code == 200:
-                owner_token = (lookup.json().get('properties') or {}).get('user_token')
+                properties = lookup.json().get('properties') or {}
+                owner_token = properties.get('user_token')
+                submitter = properties.get('submitter') or {}
+                owner_username = submitter.get('username') if isinstance(submitter, dict) else None
         except Exception:
             logging.getLogger(__name__).exception('Owner lookup failed during place delete')
             return HttpResponse('Could not verify ownership', status=403)
-        if not session_token or not owner_token or owner_token != session_token:
+
+        # A signed-in user owns the places they submitted with that account;
+        # an anonymous visitor owns the places matching their session token.
+        current_username = None
+        if owner_username:
+            try:
+                api_user = ShareaboutsApi(None, request).current_user(default=None) or {}
+                if isinstance(api_user, dict):
+                    current_username = api_user.get('username')
+            except Exception:
+                logging.getLogger(__name__).exception('Could not look up current user during delete')
+
+        is_account_owner = bool(owner_username and current_username
+                                and owner_username == current_username)
+        is_token_owner = bool(session_token and owner_token
+                              and owner_token == session_token)
+
+        if not (is_account_owner or is_token_owner):
             return HttpResponse('Forbidden', status=403)
 
     # It doesn't matter what the CSRF token value is, as long as the cookie and
@@ -487,7 +508,9 @@ def users(request, path):
 
     root = make_auth_root(settings.SHAREABOUTS.get('DATASET_ROOT'))
     api_key = settings.SHAREABOUTS.get('DATASET_KEY')
-    api_session_cookie = request.COOKIES.get('sa-api-session')
+    # NOTE: the rest of the app stores the API's session id in a cookie named
+    # 'sa-api-sessionid' on this (the map's) domain. Read the same name here.
+    api_session_cookie = request.COOKIES.get('sa-api-sessionid')
 
     url = make_resource_uri(path, root)
     headers = {'X-Shareabouts-Key': api_key} if api_key else {}
@@ -497,6 +520,28 @@ def users(request, path):
         'allow_redirects': False,
         'cookies': cookies
     })
+
+    # The API and the map live on different domains, so the browser will not
+    # keep the API's own session cookie for us. Whenever the API hands us a new
+    # session (i.e. when someone signs in or out through this proxy), copy it
+    # onto this domain as 'sa-api-sessionid' so later requests stay signed in.
+    set_cookie_headers = []
+    if hasattr(response, 'headers'):
+        raw = response.headers.get('Set-Cookie')
+        if raw:
+            set_cookie_headers.append(raw)
+    for raw in set_cookie_headers:
+        for part in raw.split(','):
+            part = part.strip()
+            if part.startswith('sessionid='):
+                value = part.split('=', 1)[1].split(';')[0]
+                if value and value not in ('""', "''"):
+                    response.set_cookie('sa-api-sessionid', value,
+                                        max_age=60 * 60 * 24 * 365,
+                                        samesite='Lax')
+                else:
+                    response.delete_cookie('sa-api-sessionid')
+
     return response
 
 
