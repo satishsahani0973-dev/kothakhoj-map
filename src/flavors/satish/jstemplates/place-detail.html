@@ -12,6 +12,9 @@
           <h1>{{#if name }}{{ name }}{{^}}{{>location-string .}}{{/if}}</h1>
           <a href="#" class="btn btn-small get-directions"
              data-lat="{{geometry.coordinates.[1]}}" data-lng="{{geometry.coordinates.[0]}}">{{#_}}Directions{{/_}}</a>
+          <a href="#" class="btn btn-small share-place"
+             data-place-id="{{ id }}"
+             data-place-name="{{#if name }}{{ name }}{{^}}Room for rent{{/if}}">{{#_}}Share{{/_}}</a>
           <span class="place-submission-details">
             {{#_}}<strong class="point-submitter">
               {{#if submitter.avatar_url }}

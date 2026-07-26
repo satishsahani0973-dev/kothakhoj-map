@@ -77,3 +77,16 @@
   color: #888;
   opacity: 0.85;
 }
+
+/* Share button (blue, sits next to the green Directions button) */
+.share-place {
+  background: #1a73e8 !important;
+  border-color: #1a73e8 !important;
+  color: #fff !important;
+  font-weight: bold;
+}
+.share-place:hover {
+  background: #1558b0 !important;
+  border-color: #1558b0 !important;
+  color: #fff !important;
+}
