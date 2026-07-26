@@ -90,3 +90,13 @@
   border-color: #1558b0 !important;
   color: #fff !important;
 }
+
+/* Google sign-in button (replaces Twitter) */
+.google-btn {
+  background-color: #4285F4 !important;
+  color: #fff !important;
+}
+.google-btn:hover {
+  background-color: #3367d6 !important;
+  color: #fff !important;
+}
