@@ -103,8 +103,10 @@ STATICFILES_FINDERS = (
     'compressor.finders.CompressorFinder',
 )
 
-# Make this unique, and don't share it with anybody.
-SECRET_KEY = 'pbv(g=%7$$4rzvl88e24etn57-%n0uw-@y*=7ak422_3!zrc9+'
+# Sessions (and therefore place ownership) are signed with this key, so it
+# must never be committed to git. It comes from the environment or from
+# local_settings.py; startup fails loudly if neither provides it.
+SECRET_KEY = os.environ.get('SECRET_KEY')
 
 TEMPLATES = [
     {
@@ -362,6 +364,12 @@ try:
         raise ImproperlyConfigured('EMAIL_NOTIFICATIONS_BCC must be a list or tuple')
 except NameError:
     pass
+
+if not SECRET_KEY:
+    raise ImproperlyConfigured(
+        'SECRET_KEY is not set. Add it to local_settings.py or the SECRET_KEY '
+        'environment variable. It must be a long random string, never a '
+        'default, and never committed to git.')
 
 
 ##############################################################################
