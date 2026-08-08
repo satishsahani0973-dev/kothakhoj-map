@@ -100,6 +100,27 @@ def apply_language(viewfunc):
     return view_wrapper
 
 
+# How long a page load may reuse the last "who is this session" answer from
+# the API. index() runs for every visitor on every page, so without this
+# every single page view is a blocking round trip to the API. The cache is
+# keyed by the API session cookie, so logging in or out (which changes that
+# cookie) refreshes it immediately.
+API_USER_CACHE_SECONDS = 60
+
+
+def get_cached_api_user(request, api):
+    sessionid = (api.sessioninfo or {}).get('id')
+    cached = request.session.get('api_user_cache')
+    if (cached
+            and cached.get('sid') == sessionid
+            and time.time() - cached.get('ts', 0) < API_USER_CACHE_SECONDS):
+        return cached.get('user')
+    user = api.current_user(default=None)
+    request.session['api_user_cache'] = {
+        'sid': sessionid, 'user': user, 'ts': time.time()}
+    return user
+
+
 @ensure_csrf_cookie
 @apply_language
 def index(request, place_id=None):
@@ -174,7 +195,7 @@ def index(request, place_id=None):
                'API_ROOT': api.root,
                'DATASET_ROOT': api.dataset_root,
 
-               'api_user': api.current_user(default=None),
+               'api_user': get_cached_api_user(request, api),
                'uses_mapbox_layers': uses_mapbox_layers,
                }
 
@@ -285,7 +306,17 @@ def send_place_created_notifications(request, response):
 def proxy_view(request, url, requests_args={}):
     # For full URLs, use a real proxy.
     if url.startswith('http:') or url.startswith('https:'):
-        response = remote_proxy_view(request, url, requests_args=requests_args)
+        # Never wait on the API forever. Without a timeout a hung upstream
+        # pins a sync gunicorn worker until gunicorn kills it at 30s; four
+        # such requests take the whole site down.
+        requests_args = dict(requests_args)
+        requests_args.setdefault('timeout', (3.05, 25))
+        try:
+            response = remote_proxy_view(request, url, requests_args=requests_args)
+        except requests.RequestException:
+            return HttpResponse(
+                '{"errors": ["The data server did not respond in time. Please try again."]}',
+                status=504, content_type='application/json')
 
         # Cookies will already have been parsed into the response.cookies
         # attribute, so we can remove the Set-Cookie header to avoid

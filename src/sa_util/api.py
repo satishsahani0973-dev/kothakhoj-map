@@ -57,6 +57,12 @@ def make_api_session(dataset_root, api_sessioninfo: ApiSessionInfo):
     return api_session
 
 
+# (connect, read) timeouts for every call to the API. Without these, a hung
+# API holds a gunicorn worker forever; four hung requests would take the
+# whole map down even though the map itself is healthy.
+API_TIMEOUT = (3.05, 10)
+
+
 class ShareaboutsApiError (Exception):
     def __init__(self, msg, errors):
         super().__init__(msg)
@@ -98,14 +104,20 @@ class ShareaboutsApi:
 
     def get(self, resource, default=None, **kwargs):
         uri = make_resource_uri(resource, root=self.dataset_root)
-        res = self.session.get(uri, params=kwargs)
+        try:
+            res = self.session.get(uri, params=kwargs, timeout=API_TIMEOUT)
+        except requests.RequestException:
+            return default
         self.update_session_cookie()
         return (res.text if res.status_code == 200 else default)
 
     def current_user(self, default=None, **kwargs):
         if not hasattr(self, '_cached_user'):
             uri = make_resource_uri('current', root=self.auth_root)
-            res = self.session.get(uri, **kwargs)
+            try:
+                res = self.session.get(uri, timeout=API_TIMEOUT, **kwargs)
+            except requests.RequestException:
+                return default
             self.update_session_cookie()
 
             self._cache_user(res.json() if res.status_code == 200 else default)
@@ -117,18 +129,32 @@ class ShareaboutsApi:
             'password': password,
         }
         uri = make_resource_uri('current', root=self.auth_root)
-        res = self.session.post(uri, json=payload, **kwargs)
+        try:
+            res = self.session.post(uri, json=payload, timeout=API_TIMEOUT, **kwargs)
+        except requests.RequestException:
+            raise ShareaboutsApiError(
+                'Could not reach the server',
+                {'network': 'Could not reach the server. Please try again.'})
         self.update_session_cookie()
 
         if res.status_code == 200:
             self._cache_user(res.json())
             return True
         else:
-            raise ShareaboutsApiError(res.text, res.json().get('errors'))
+            try:
+                errors = res.json().get('errors')
+            except ValueError:
+                errors = None
+            raise ShareaboutsApiError(res.text, errors)
 
     def logout(self, **kwargs):
         uri = make_resource_uri('current', root=self.auth_root)
-        res = self.session.delete(uri, **kwargs)
+        try:
+            res = self.session.delete(uri, timeout=API_TIMEOUT, **kwargs)
+        except requests.RequestException:
+            raise ShareaboutsApiError(
+                'Could not reach the server',
+                {'network': 'Could not reach the server. Please try again.'})
         self.update_session_cookie()
 
         if res.status_code == 204:
