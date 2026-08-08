@@ -148,10 +148,11 @@ SESSION_COOKIE_NAME = 'sa-web-session'
 
 # How long a visitor's session (and therefore ownership of the places they
 # added) is remembered. Django's default is 2 weeks, which means people lose
-# the ability to delete their own places after a fortnight. One year, refreshed
-# on every visit, means an active user effectively never loses ownership.
-# To change the duration, edit the number of days below and redeploy.
-SESSION_COOKIE_AGE = 60 * 60 * 24 * 365  # seconds * minutes * hours * days
+# the ability to delete their own places after a fortnight. 400 days is the
+# ceiling browsers actually honour for cookies (Chrome and Safari clamp
+# anything larger), and SESSION_SAVE_EVERY_REQUEST refreshes the clock on
+# every visit, so an active user effectively never loses ownership.
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 400  # seconds * minutes * hours * days
 SESSION_SAVE_EVERY_REQUEST = True
 
 ROOT_URLCONF = 'project.urls'

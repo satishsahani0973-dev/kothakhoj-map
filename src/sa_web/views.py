@@ -143,7 +143,12 @@ def index(request, place_id=None):
         unique_string = (str(t) + str(ip)).encode()
         session_token = 'session:' + hashlib.md5(unique_string).hexdigest()
         request.session['user_token'] = session_token
-        request.session.set_expiry(0)
+
+    # None means "use SESSION_COOKIE_AGE". This must run on every request, not
+    # just when the token is first assigned: sessions issued before this fix
+    # carry _session_expiry: 0 ("expire on browser close") inside the signed
+    # cookie, and only an explicit set_expiry(None) clears it.
+    request.session.set_expiry(None)
 
     user_token_json = u'"{0}"'.format(request.session['user_token'])
 
