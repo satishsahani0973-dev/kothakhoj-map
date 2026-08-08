@@ -232,6 +232,27 @@ place:
       name: location_type
       attrs:
         - key: required
+    - prompt: _(When will this room be free?)
+      label: _(Free from)
+      type: select
+      options:
+        - label: _(Choose One)
+          value: ''
+        - label: _(Now — it is empty)
+          value: now
+        - label: _(After 3 months)
+          value: 3m
+        - label: _(After 6 months)
+          value: 6m
+        - label: _(After 1 year)
+          value: 1y
+        - label: _(After 2 years)
+          value: 2y
+        - label: _(After 3 years)
+          value: 3y
+      name: stay_duration
+      attrs:
+        - key: required
     - prompt: _(Contact Number)
       label: _(Contact Number)
       type: text
@@ -312,6 +333,13 @@ pages:
     slug: about
     name: overview
     start_page: true
+
+  # Not shown in the nav (hidden) — opened by the header Sign In link and
+  # the add-place welcome. The map keeps running behind the panel.
+  - title: _(Sign in)
+    slug: signin
+    name: signin
+    hidden: true
 
   - title: _(More...)
     pages:
