@@ -227,3 +227,21 @@
   margin-top: 10px;
   text-align: center;
 }
+
+/* The panel's pink ✕ styles target a.close-btn with absolute positioning;
+   the sign-in panel's Continue button reuses that class for its behavior
+   but must stay a normal block button inside the panel. */
+.signin-page a.close-btn {
+  position: static;
+  float: none;
+  background: #1a73e8;
+  color: #fff;
+  font-size: 18px;
+  line-height: inherit;
+  border-radius: 4px;
+  padding: 12px;
+}
+.signin-page a.close-btn:hover {
+  background: #1558b0;
+  color: #fff;
+}
