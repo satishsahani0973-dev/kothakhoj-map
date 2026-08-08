@@ -5,6 +5,8 @@
 <a href="/{{ config.app.home_path }}">{{ config.app.name }}</a>
 {% endblock %}
 
+{% block page-title %}{% if place %}{{ place.properties.name|default:"Room for rent" }} — {{ config.app.title }}, Butwal{% else %}{{ config.app.title }} — Rooms and flats for rent in Butwal, Nepal{% endif %}{% endblock %}
+
 {% block meta %}
   {% if place %}
     <!-- Twitter -->
@@ -36,6 +38,33 @@
     <meta property="og:title" content="{{ config.app.title }}" />
     <meta property="og:description" content="{{ config.app.meta_description }}" />
   {% endif%}
+
+  <link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
+  <meta property="og:url" content="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}" />
+
+  {% if place %}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Room",
+    "name": "{{ place.properties.name|default:'Room for rent'|escapejs }}",
+    "description": "{{ place.properties.description|default:''|escapejs }}",
+    "url": "{{ request.scheme }}://{{ request.get_host }}{{ request.path }}",
+    {% with attachment=place.properties.attachments|first %}{% if attachment %}"image": "{{ attachment.file }}",{% endif %}{% endwith %}
+    {% if place.geometry.coordinates %}"geo": {
+      "@type": "GeoCoordinates",
+      "latitude": {{ place.geometry.coordinates.1 }},
+      "longitude": {{ place.geometry.coordinates.0 }}
+    },{% endif %}
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Butwal",
+      "addressRegion": "Lumbini Province",
+      "addressCountry": "NP"
+    }
+  }
+  </script>
+  {% endif %}
 {% endblock %}
 
 <!--

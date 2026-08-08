@@ -91,16 +91,24 @@
   color: #fff !important;
 }
 
-/* Sign-in prompt shown to viewers where the Add button sits for posters */
-.add-place-signin .add-place-signin-note {
-  margin: 6px 0 0;
-  text-align: center;
-  font-size: 13px;
-  color: #666;
+/* First-visit gate: blur the running map behind the sign-in panel.
+   #add-place-btn-container lives inside #map-container, so it blurs too. */
+body.signin-gate #map-container,
+body.signin-gate #geocode-address-bar,
+body.signin-gate #ticker,
+body.signin-gate #list-container {
+  filter: blur(7px);
+  pointer-events: none;
+  user-select: none;
 }
-.add-place-signin .add-place-signin-note a {
-  color: #1a73e8;
-  font-weight: bold;
+
+/* Welcome bar for browsing students — identical size, place, and color
+   as the Add a Place button (btn-primary), but inert: pointer-events
+   none keeps it from acting like a button. */
+.browse-welcome {
+  pointer-events: none;
+  cursor: default;
+  text-align: center;
 }
 
 /* Full-width Directions bar under the listing header */
@@ -111,12 +119,159 @@
   font-size: 16px;
 }
 
-/* Live "Free from ..." preview under the add-a-room form */
-.stay-duration-preview {
-  margin: 6px 0 0;
+/* "Posting as <username>" chip at the top of the add-place form */
+.posting-as {
+  background: #f1f3f4;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #444;
+  margin: 0 0 12px;
+}
+.posting-as-note {
+  color: #888;
+}
+
+/* "When will this room be free?" picker */
+.free-picker {
+  margin: 14px 0 10px;
+}
+.free-picker-label {
   font-size: 14px;
   font-weight: bold;
-  color: #1a9850;
+  margin: 0 0 6px;
+}
+.free-picker-kind {
+  display: flex;
+  gap: 6px;
+}
+.free-picker .free-kind {
+  flex: 1;
+  background: #fff;
+  color: #555;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 9px 4px;
+  font-size: 14px;
+}
+.free-picker .free-kind.is-active {
+  border: 2px solid #1a73e8;
+  color: #1a73e8;
+  font-weight: bold;
+  background: #f4f8ff;
+}
+.free-picker-count-label {
+  font-size: 12px;
+  color: #666;
+  margin: 10px 0 4px;
+}
+.free-count-chips {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.free-picker .free-count {
+  width: 38px;
+  background: #fff;
+  color: #555;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 7px 0;
+  font-size: 14px;
+  text-align: center;
+}
+.free-picker .free-count.is-active {
+  border: 2px solid #1a73e8;
+  color: #1a73e8;
+  font-weight: bold;
+  background: #f4f8ff;
+}
+.free-or {
+  font-size: 12px;
+  color: #888;
+  margin: 0 2px;
+}
+/* The form's generic input rule sets width:100%; keep this box small. */
+.place-form input.free-count-custom {
+  width: 64px;
+  padding: 7px 6px;
+  font-size: 16px; /* 16px stops iOS from zooming into the field */
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+.free-picker-date {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-weight: bold;
+  color: #854F0B;
+}
+.free-picker-preview {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #666;
+}
+
+/* Availability badges — used in the form preview and on the place detail */
+.free-badge {
+  display: inline-block;
+  border-radius: 10px;
+  padding: 2px 10px;
+  font-size: 12px;
+  font-weight: bold;
+}
+.free-badge-now {
+  background: #eaf3de;
+  color: #27500a;
+}
+.free-badge-later {
+  background: #faeeda;
+  color: #854f0b;
+}
+.place-availability {
+  margin: 2px 0 6px;
+  clear: none;
+}
+.place-type-chip {
+  display: inline-block;
+  border-radius: 10px;
+  padding: 2px 10px;
+  font-size: 12px;
+  font-weight: bold;
+  background: #f1efe8;
+  color: #444;
+}
+
+/* College markers: small dark cap circle + white name chip.
+   Rooms stay the loudest color on the map. */
+.college-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #2c2c2a;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  font-size: 14px;
+  line-height: 1;
+}
+.leaflet-tooltip.college-label {
+  background: #fff;
+  border: none;
+  color: #2c2c2a;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 2px 8px;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+}
+.leaflet-tooltip-right.college-label::before {
+  border-right-color: #fff;
+}
+.hide-college-labels .college-label {
+  display: none;
 }
 
 /* Header Sign In as a direct link (routes to the /page/signin panel) */
@@ -161,6 +316,18 @@
 }
 .signin-page .close-btn {
   cursor: pointer;
+}
+.signin-intro {
+  text-align: center;
+  font-size: 14px;
+  color: #555;
+  margin: 0 0 12px;
+}
+.signin-who {
+  text-align: center;
+  font-size: 13px;
+  color: #555;
+  margin: 0 0 10px;
 }
 .signin-divider {
   display: flex;
@@ -222,6 +389,56 @@
 .signin-status {
   text-align: center;
   font-size: 15px;
+}
+
+/* Inline problem box at the top of the sign-in panel (wrong password or
+   dead QR card) with the WhatsApp help button */
+.signin-error {
+  background: #fdecea;
+  border: 1px solid #f5c6c1;
+  color: #a32d2d;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: bold;
+  text-align: center;
+  margin: 0 0 14px;
+}
+.signin-error .signin-whatsapp,
+.signin-error .signin-whatsapp:hover {
+  display: inline-block;
+  margin-top: 8px;
+  background: #25D366 !important;
+  color: #fff !important;
+  font-weight: bold;
+  border: none;
+}
+
+/* QR login: the scan button under Sign in, and the webcam window */
+.signin-scan {
+  margin-top: 10px;
+  background: #fff !important;
+  color: #1a73e8 !important;
+  border: 2px solid #1a73e8 !important;
+  font-weight: bold;
+}
+.signin-scan:hover {
+  background: #f4f8ff !important;
+}
+.signin-scanner-hint {
+  text-align: center;
+  font-size: 13px;
+  font-weight: bold;
+  margin: 12px 0 6px;
+}
+.signin-scanner-video {
+  width: 100%;
+  border-radius: 8px;
+  background: #000;
+  min-height: 180px;
+}
+.signin-scanner-cancel {
+  margin-top: 6px;
 }
 .signin-logout {
   margin-top: 10px;

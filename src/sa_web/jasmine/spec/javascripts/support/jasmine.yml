@@ -36,6 +36,7 @@ src_files:
   - static/js/views/place-list-view.js
   - static/js/views/geocode-address-view.js
   - static/js/routes.js
+  - ../flavors/satish/static/js/custom.js
 
 # stylesheets
 #

@@ -67,81 +67,19 @@ map:
 
 # The keys show up in the dropdown list when you are adding a new place
 # The values map the place type to map icons (defined below).
+#
+# Pin colors mean AVAILABILITY, not room type:
+#   green (4bbd45)  = available now (no free_ts, or the date has passed)
+#   orange (f95016) = occupied — free after the stored date
+# free_ts is an epoch-milliseconds string saved by the add-place form.
+# Places saved before this feature have no free_ts: Number("undefined")
+# is NaN, every ">" check is false, so they fall through to green.
 place_types:
   single_room:
     label: _(Single Room)
-    rules:
-      - condition: '"{{location_type}}" === "single_room" && {{map.zoom}} < 13 && {{layer.focused}} === false'
-        # Display single room as circles (vectors) when zoomed out
-
-        style:
-          color: '#0d85e9'
-          radius: 3
-          weight: 1
-          opacity: 0.9
-          fillOpacity: 1
-
-      - condition: '"{{location_type}}" === "single_room" && {{map.zoom}} >= 13 && {{layer.focused}} === false'
-        # Display single_room as icons when zoomed in
-
-        icon:
-          iconUrl: /static/css/images/markers/dot-0d85e9.png
-          iconSize: [17, 18]
-          iconAnchor: [9, 9]
-
-      - condition: '"{{location_type}}" === "single_room" && {{layer.focused}} === true'
-        # Display single_room as icons when focused/selected
-
-        icon:
-          iconUrl: /static/css/images/markers/marker-0d85e9.png
-          shadowUrl: /static/css/images/marker-shadow.png
-          iconSize: [25, 41]
-          shadowSize: [41, 41]
-          iconAnchor: [12, 41]
-
-  double_room:
-    label: _(Double_Room)
-    rules:
-      - condition: '"{{location_type}}" === "double_room" && {{layer.focused}}'
-        # Show parks that are points as icons...
-
-        icon:
-          iconUrl: /static/css/images/markers/marker-4bbd45.png
-          shadowUrl: /static/css/images/marker-shadow.png
-          iconSize: [25, 41]
-          shadowSize: [41, 41]
-          iconAnchor: [12, 41]
-
-        # ...and parks that are polygons as shapes.
-
-        style:
-          color: '#4bbd45'
-          weight: 3
-          opacity: 0.9
-          fillOpacity: 0.7
-
-      - condition: '"{{location_type}}" === "double_room"'
-        # Show parks that are points as icons...
-
-        icon:
-          iconUrl: /static/css/images/markers/dot-4bbd45.png
-          iconSize: [17, 18]
-          iconAnchor: [9, 9]
-
-        # ...and parks that are polygons as shapes.
-
-        style:
-          color: '#4bbd45'
-          weight: 1
-          opacity: 0.9
-          fillOpacity: 0.4
-
-  flat:
-    label: _(Flat)
-    rules:
-      - condition: '"{{location_type}}" === "flat" && {{layer.focused}} === true'
-        # Display flat as a large marker when focused/selected
-
+    rules: &availability-rules
+      - condition: '{{layer.focused}} === true && Number("{{free_ts}}") > Date.now()'
+        # Focused + still occupied: big orange marker
         icon:
           iconUrl: /static/css/images/markers/marker-f95016.png
           shadowUrl: /static/css/images/marker-shadow.png
@@ -149,13 +87,36 @@ place_types:
           shadowSize: [41, 41]
           iconAnchor: [12, 41]
 
-      - condition: '"{{location_type}}" === "flat"'
-        # Display flat as an orange dot icon
+      - condition: '{{layer.focused}} === true'
+        # Focused + available: big green marker
+        icon:
+          iconUrl: /static/css/images/markers/marker-4bbd45.png
+          shadowUrl: /static/css/images/marker-shadow.png
+          iconSize: [25, 41]
+          shadowSize: [41, 41]
+          iconAnchor: [12, 41]
 
+      - condition: 'Number("{{free_ts}}") > Date.now()'
+        # Still occupied: orange dot
         icon:
           iconUrl: /static/css/images/markers/dot-f95016.png
           iconSize: [17, 18]
           iconAnchor: [9, 9]
+
+      - condition: 'true'
+        # Available now (also every place saved before this feature): green dot
+        icon:
+          iconUrl: /static/css/images/markers/dot-4bbd45.png
+          iconSize: [17, 18]
+          iconAnchor: [9, 9]
+
+  double_room:
+    label: _(Double Room)
+    rules: *availability-rules
+
+  flat:
+    label: _(Flat)
+    rules: *availability-rules
 
 
 activity:
@@ -185,26 +146,6 @@ place:
   location_item_name: location
 
   items:
-    - prompt: _(Your Name)
-      type: text
-      name: submitter_name
-      optional: true
-      sticky: true
-      attrs:
-        - key: placeholder
-          value: _(Name)
-        - key: size
-          value: 30
-    - prompt: _(Your Email)
-      type: text
-      name: private-submitter_email
-      optional: true
-      sticky: true
-      attrs:
-        - key: placeholder
-          value: _(Email address)
-        - key: size
-          value: 30
     - prompt: _(Location Address)
       type: location
       name: address
@@ -230,27 +171,6 @@ place:
         - label: _(Flat)
           value: flat
       name: location_type
-      attrs:
-        - key: required
-    - prompt: _(When will this room be free?)
-      label: _(Free from)
-      type: select
-      options:
-        - label: _(Choose One)
-          value: ''
-        - label: _(Now — it is empty)
-          value: now
-        - label: _(After 3 months)
-          value: 3m
-        - label: _(After 6 months)
-          value: 6m
-        - label: _(After 1 year)
-          value: 1y
-        - label: _(After 2 years)
-          value: 2y
-        - label: _(After 3 years)
-          value: 3y
-      name: stay_duration
       attrs:
         - key: required
     - prompt: _(Contact Number)

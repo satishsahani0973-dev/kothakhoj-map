@@ -10,6 +10,7 @@
 
         <header class="place-header clearfix">
           <h1>{{#if name }}{{ name }}{{^}}{{>location-string .}}{{/if}}</h1>
+          <p class="place-availability">{{ free_badge free_ts }} <span class="place-type-chip">{{ place_type_label location_type }}</span></p>
           <a href="#" class="btn btn-small share-place"
              data-place-id="{{ id }}"
              data-place-name="{{#if name }}{{ name }}{{^}}Room for rent{{/if}}">{{#_}}Share{{/_}}</a>

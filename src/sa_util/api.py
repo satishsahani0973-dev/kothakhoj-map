@@ -147,6 +147,19 @@ class ShareaboutsApi:
                 errors = None
             raise ShareaboutsApiError(res.text, errors)
 
+    def qr_login(self, token, **kwargs):
+        """
+        Start an API session from a QR login card secret. Returns True on
+        success; any failure (bad card, network trouble) is just False.
+        """
+        uri = make_resource_uri('qr-session', root=self.auth_root)
+        try:
+            res = self.session.post(uri, json={'token': token}, timeout=API_TIMEOUT, **kwargs)
+        except requests.RequestException:
+            return False
+        self.update_session_cookie()
+        return res.status_code == 204
+
     def logout(self, **kwargs):
         uri = make_resource_uri('current', root=self.auth_root)
         try:

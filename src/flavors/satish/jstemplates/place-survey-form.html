@@ -1,0 +1,21 @@
+{{#if survey_config.adding_supported}}
+<div id="reply">
+  <h4 class="reply-header">{{ title }}</h4>
+  <form id="new_response" class="new_response clearfix" action="#" method="post">
+    <input type="hidden" name="visible" value="on">
+    <input type="hidden" name="user_token" value="{{{ user_token }}}">
+
+    {{> form-field-set form_config=survey_config }}
+
+    <input name="commit" type="submit" value="{{ survey_config.submit_btn_text }}" class="btn btn-primary submit-btn">
+
+    {{#is_authenticated}}
+      <p class="signed-in-as">{{#_}}Commenting as{{/_}} <strong>{{ current_user "username" }}</strong> · <a class="" href="/users/logout/">{{#_}}Log Out{{/_}}</a></p>
+    {{^}}
+    {{/is_authenticated}}
+
+    <div class="form-spinner"></div>
+
+  </form>
+</div>
+{{/if}}

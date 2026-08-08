@@ -1,0 +1,7 @@
+{{#is_submitter_name}}
+  {{^is_authenticated}}
+    <input id="{{ default submission_type 'place' }}-{{ name }}" name="{{ name }}" type="{{ type }}" {{#attrs}} {{ key }}="{{ value }}"{{/attrs}} value="{{get_value ../../form_config name}}">
+  {{/is_authenticated}}
+{{^}}
+  <input id="{{ default submission_type 'place' }}-{{ name }}" name="{{ name }}" type="{{ type }}" {{#attrs}} {{ key }}="{{ value }}"{{/attrs}} value="{{get_value ../form_config name}}">
+{{/is_submitter_name}}

@@ -536,6 +536,92 @@ def users(request, path):
     return response
 
 
+def robots_txt(request):
+    """
+    Plain robots: everything crawlable except the admin and auth plumbing.
+    """
+    lines = [
+        'User-agent: *',
+        'Allow: /',
+        'Disallow: /admin/',
+        'Disallow: /login/',
+        'Disallow: /users/',
+        'Disallow: /api/',
+        'Disallow: /full-api/',
+        'Sitemap: ' + request.build_absolute_uri('/sitemap.xml'),
+        '',
+    ]
+    return HttpResponse('\n'.join(lines), content_type='text/plain')
+
+
+SITEMAP_CACHE_SECONDS = 60 * 60 * 12
+SITEMAP_MAX_PAGES = 10
+
+
+def sitemap_xml(request):
+    """
+    Sitemap of the static pages plus every place. Place ids come from the
+    API; failures degrade to a static-only sitemap rather than a 500, and
+    the result is cached so crawlers don't hammer the API.
+    """
+    from django.core.cache import cache
+
+    cached = cache.get('sa-sitemap-xml')
+    if cached:
+        return HttpResponse(cached, content_type='application/xml')
+
+    base = request.build_absolute_uri('/').rstrip('/')
+    urls = [(base + '/', None)]
+
+    config = get_shareabouts_config()
+
+    def walk_pages(pages):
+        for page in pages or []:
+            if page.get('hidden'):
+                continue
+            if page.get('slug') and not page.get('external'):
+                yield page['slug']
+            yield from walk_pages(page.get('pages'))
+
+    for slug in walk_pages(config.get('pages', [])):
+        urls.append((base + '/page/' + slug, None))
+
+    api = ShareaboutsApi(config, request)
+    for page_num in range(1, SITEMAP_MAX_PAGES + 1):
+        page_text = api.get('places', page_size=500, page=page_num)
+        if not page_text:
+            break
+        try:
+            data = json.loads(page_text)
+        except ValueError:
+            break
+        features = data.get('features', [])
+        for feature in features:
+            place_id = feature.get('id') or feature.get('properties', {}).get('id')
+            if place_id is None:
+                continue
+            lastmod = feature.get('properties', {}).get('updated_datetime')
+            urls.append((base + '/place/' + str(place_id), lastmod))
+        if not data.get('metadata', {}).get('next'):
+            break
+
+    entries = []
+    for loc, lastmod in urls:
+        entry = '  <url><loc>' + loc + '</loc>'
+        if lastmod:
+            entry += '<lastmod>' + lastmod[:10] + '</lastmod>'
+        entry += '</url>'
+        entries.append(entry)
+
+    xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
+           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+           '\n'.join(entries) +
+           '\n</urlset>\n')
+
+    cache.set('sa-sitemap-xml', xml, SITEMAP_CACHE_SECONDS)
+    return HttpResponse(xml, content_type='application/xml')
+
+
 def csv_download(request, path):
     """
     A small proxy for a Shareabouts API server, exposing only

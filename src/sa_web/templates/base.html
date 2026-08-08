@@ -8,7 +8,7 @@
 <html lang="{{LANGUAGE_CODE}}" dir="auto">
 <head>
   <meta charset="utf-8">
-  <title>{{ config.app.title }}</title>
+  <title>{% block page-title %}{{ config.app.title }}{% endblock %}</title>
   <meta name="description" content="{{ config.app.meta_description }}">
   <meta name="author" content="{{ config.app.meta_author }}">
 

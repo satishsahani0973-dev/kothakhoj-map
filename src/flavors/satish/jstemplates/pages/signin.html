@@ -1,8 +1,8 @@
 <div class="signin-page">
   {{#is_authenticated}}
 
-    <h1>{{#_}}You are signed in{{/_}}</h1>
-    <p class="signin-status">{{#_}}Signed in as{{/_}} <strong>{{ current_user "username" }}</strong></p>
+    <h1>{{#_}}Welcome{{/_}}, {{ current_user "username" }}</h1>
+    <p class="signin-status">{{#_}}You are signed in. You can add and manage your places.{{/_}}</p>
     <a href="/" class="btn btn-block btn-large btn-primary close-btn">{{#_}}Continue to the map{{/_}}</a>
     <a class="btn btn-block signin-logout" href="/users/logout/">{{#_}}Log Out{{/_}}</a>
 
@@ -10,9 +10,13 @@
 
     <h1>{{#_}}Welcome to KothaKhoj{{/_}}</h1>
 
+    <p class="signin-intro">{{#_}}New student? Browse rooms near your college or school — no account needed.{{/_}}</p>
+
     <a href="/" class="btn btn-block btn-large btn-primary close-btn">{{#_}}Continue browsing{{/_}}</a>
 
-    <div class="signin-divider"><span>{{#_}}or{{/_}}</span></div>
+    <div class="signin-divider"><span>{{#_}}have a room to give?{{/_}}</span></div>
+
+    <p class="signin-who">{{#_}}<strong>Old students can add their room</strong> — colleges and landlords too. Sign in to add a place.{{/_}}</p>
 
     <form class="signin-form" method="POST" action="/login/">
       <input type="hidden" name="csrfmiddlewaretoken" value="">
@@ -24,8 +28,16 @@
       <button type="submit" class="btn btn-block signin-submit">{{#_}}Sign in{{/_}}</button>
     </form>
 
+    <button type="button" class="btn btn-block signin-scan">{{#_}}Scan login card{{/_}}</button>
+
+    <div class="signin-scanner is-hidden">
+      <p class="signin-scanner-hint">{{#_}}Show your card to the camera{{/_}}</p>
+      <video class="signin-scanner-video" playsinline muted></video>
+      <button type="button" class="btn btn-block signin-scanner-cancel">{{#_}}Cancel{{/_}}</button>
+    </div>
+
     <hr class="signin-rule">
-    <p class="signin-landlord">{{#_}}Landlord or college?{{/_}}<br>
+    <p class="signin-landlord">{{#_}}Old student, college or landlord?{{/_}}<br>
       <a href="/page/contact">{{#_}}Contact us to get an account{{/_}}</a></p>
 
   {{/is_authenticated}}

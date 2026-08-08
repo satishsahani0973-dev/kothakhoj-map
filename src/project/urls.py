@@ -6,9 +6,12 @@ from django.views.i18n import set_language
 
 admin.autodiscover()
 
+from sa_login import views as sa_login_views
+
 urlpatterns = [
     path('choose-language', set_language, name='set_language'),
     path('login/', include('sa_login.urls')),
+    path('qr/<str:token>', sa_login_views.qr_login, name='qr_login'),
     path('admin/', include('sa_admin.urls')),
     path('', include('sa_web.urls')),
 ]
