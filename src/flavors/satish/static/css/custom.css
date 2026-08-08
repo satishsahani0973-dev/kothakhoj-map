@@ -102,3 +102,11 @@
   color: #1a73e8;
   font-weight: bold;
 }
+
+/* Full-width Directions bar under the listing header */
+.place-directions-bar {
+  margin: 10px 0;
+}
+.place-directions-bar .get-directions {
+  font-size: 16px;
+}
