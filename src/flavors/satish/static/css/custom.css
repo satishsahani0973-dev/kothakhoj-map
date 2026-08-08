@@ -110,3 +110,120 @@
 .place-directions-bar .get-directions {
   font-size: 16px;
 }
+
+/* Live "Free from ..." preview under the add-a-room form */
+.stay-duration-preview {
+  margin: 6px 0 0;
+  font-size: 14px;
+  font-weight: bold;
+  color: #1a9850;
+}
+
+/* Header Sign In as a direct link (routes to the /page/signin panel) */
+.sign-in-link {
+  color: #a3c7d9;
+  font-size: 0.75em;
+  text-transform: uppercase;
+  text-align: center;
+  text-decoration: none;
+  line-height: 3.25;
+  float: right;
+  display: block;
+  padding: 0 0.5em;
+  margin: 0 0 0 0.5em;
+  font-weight: bold;
+}
+.sign-in-link:hover {
+  color: #fff;
+}
+@media only screen and (min-width: 60em) {
+  .sign-in-link {
+    font-size: 1em;
+    line-height: 1.5;
+    padding: 0.5em;
+    margin: 0.75em 0.75em 0 0.75em;
+    position: relative;
+    z-index: 3;
+  }
+}
+
+/* Sign-in panel — three blocks over the running map: continue browsing,
+   the id/pass form, and the get-an-account line */
+.signin-page {
+  max-width: 320px;
+  margin: 0 auto;
+  padding: 8px 4px 24px;
+}
+.signin-page h1 {
+  text-align: center;
+  font-size: 24px;
+  margin-bottom: 20px;
+}
+.signin-page .close-btn {
+  cursor: pointer;
+}
+.signin-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: #999;
+  margin: 18px 0;
+  font-size: 13px;
+  text-transform: lowercase;
+}
+.signin-divider:before,
+.signin-divider:after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #ddd;
+}
+.signin-divider span {
+  padding: 0 10px;
+}
+.signin-form label {
+  display: block;
+  font-size: 13px;
+  color: #555;
+  margin: 10px 0 4px;
+}
+.signin-form input[type="text"],
+.signin-form input[type="password"] {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
+  font-size: 16px; /* 16px stops iOS from zooming into the field */
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.signin-submit {
+  margin-top: 14px;
+  background: #fff !important;
+  color: #1a73e8 !important;
+  border: 2px solid #1a73e8 !important;
+  font-weight: bold;
+}
+.signin-submit:hover {
+  background: #f4f8ff !important;
+}
+.signin-rule {
+  border: 0;
+  border-top: 1px solid #ddd;
+  margin: 20px 0 12px;
+}
+.signin-landlord {
+  text-align: center;
+  font-size: 14px;
+  color: #666;
+}
+.signin-landlord a {
+  color: #1a73e8;
+  font-weight: bold;
+}
+.signin-status {
+  text-align: center;
+  font-size: 15px;
+}
+.signin-logout {
+  margin-top: 10px;
+  text-align: center;
+}

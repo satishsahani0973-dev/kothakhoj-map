@@ -206,6 +206,10 @@
   <script src="{% static 'dist/app.js' %}?_={{settings.LAST_DEPLOY_DATE}}"></script>
   {% endif %}
 
+  <!-- Flavor-specific behaviors (resolved from the flavor's static dir,
+       same mechanism as css/custom.css above) -->
+  <script src="{% static 'js/custom.js' %}?_={{settings.LAST_DEPLOY_DATE}}"></script>
+
   {% comment %} <script src="{{API_ROOT}}users/current?format=jsonp&callback=bootstrapCurrentUser"></script> {% endcomment %}
 
   {% handlebarsjs '(.*)' precompile register_partials %}

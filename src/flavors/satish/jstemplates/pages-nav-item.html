@@ -1,0 +1,35 @@
+{{#unless hidden }}
+<li class="menu-item
+  {{#if slug }}
+    {{#unless pages }}
+      {{#unless external }}
+        internal-menu-item
+      {{/unless }}
+    {{/unless }}
+    menu-item-{{ slug }}
+  {{/if }}">
+  {{#if pages }}
+
+    <a class="btn btn-block btn-secondary">{{ title }}</a>
+    <ul>
+    {{# pages }}
+      {{> pages-nav-item }}
+    {{/ pages }}
+    </ul>
+
+  {{else}}
+
+    {{#if external }}
+      <a class="btn btn-block btn-secondary" href="{{ url }}" {{#each link_attrs}} {{@key}}="{{this}}" {{/each}}>{{ title }}</a>
+    {{else }}
+      {{#if slug }}
+        <a class="btn btn-block btn-secondary" href="/page/{{ slug }}" {{#each link_attrs}} {{@key}}="{{this}}" {{/each}}>{{ title }}</a>
+      {{else }}
+        <a class="btn btn-block btn-secondary" {{#each link_attrs}} {{@key}}="{{this}}" {{/each}}>{{ title }}</a>
+      {{/if }}
+    {{/if }}
+
+  {{/if }}
+
+</li>
+{{/unless }}

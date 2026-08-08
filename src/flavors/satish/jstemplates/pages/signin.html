@@ -1,0 +1,32 @@
+<div class="signin-page">
+  {{#is_authenticated}}
+
+    <h1>{{#_}}You are signed in{{/_}}</h1>
+    <p class="signin-status">{{#_}}Signed in as{{/_}} <strong>{{ current_user "username" }}</strong></p>
+    <a href="/" class="btn btn-block btn-large btn-primary close-btn">{{#_}}Continue to the map{{/_}}</a>
+    <a class="btn btn-block signin-logout" href="/users/logout/">{{#_}}Log Out{{/_}}</a>
+
+  {{^}}
+
+    <h1>{{#_}}Welcome to KothaKhoj{{/_}}</h1>
+
+    <a href="/" class="btn btn-block btn-large btn-primary close-btn">{{#_}}Continue browsing{{/_}}</a>
+
+    <div class="signin-divider"><span>{{#_}}or{{/_}}</span></div>
+
+    <form class="signin-form" method="POST" action="/login/">
+      <input type="hidden" name="csrfmiddlewaretoken" value="">
+      <input type="hidden" name="next" value="/">
+      <label for="signin-username">{{#_}}Username{{/_}}</label>
+      <input id="signin-username" name="username" type="text" required autocomplete="username" autocapitalize="none" autocorrect="off">
+      <label for="signin-password">{{#_}}Password{{/_}}</label>
+      <input id="signin-password" name="password" type="password" required autocomplete="current-password">
+      <button type="submit" class="btn btn-block signin-submit">{{#_}}Sign in{{/_}}</button>
+    </form>
+
+    <hr class="signin-rule">
+    <p class="signin-landlord">{{#_}}Landlord or college?{{/_}}<br>
+      <a href="/page/contact">{{#_}}Contact us to get an account{{/_}}</a></p>
+
+  {{/is_authenticated}}
+</div>
