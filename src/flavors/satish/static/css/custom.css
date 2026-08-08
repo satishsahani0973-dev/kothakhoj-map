@@ -90,3 +90,15 @@
   border-color: #1558b0 !important;
   color: #fff !important;
 }
+
+/* Sign-in prompt shown to viewers where the Add button sits for posters */
+.add-place-signin .add-place-signin-note {
+  margin: 6px 0 0;
+  text-align: center;
+  font-size: 13px;
+  color: #666;
+}
+.add-place-signin .add-place-signin-note a {
+  color: #1a73e8;
+  font-weight: bold;
+}

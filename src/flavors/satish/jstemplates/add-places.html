@@ -1,0 +1,13 @@
+{{#can_add_places}}
+  {{#is_authenticated}}
+    <div id="add-place-btn-container">
+      <a href="#" id="add-place" class="btn btn-block btn-primary btn-large"><span>{{ add_button_label }}</span></a>
+    </div>
+    <span id="centerpoint" class="is-hidden"><span class="shadow"></span><span class="x"></span><span class="marker"></span></span>
+  {{^}}
+    <div id="add-place-btn-container" class="add-place-signin">
+      <a href="/login/?next=/" class="btn btn-block btn-large"><span>{{#_}}Have a room to list? Sign in{{/_}}</span></a>
+      <p class="add-place-signin-note">{{#_}}Landlord or college?{{/_}} <a href="/page/contact">{{#_}}Contact us to get an account{{/_}}</a></p>
+    </div>
+  {{/is_authenticated}}
+{{/can_add_places}}
