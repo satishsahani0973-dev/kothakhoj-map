@@ -405,6 +405,28 @@ var Shareabouts = Shareabouts || {};
       this.geolocate();
     },
     geolocate: function() {
+      // Prefer the flavor's location engine (blue dot + accuracy circle +
+      // few-second refine) when it is loaded; fall back to plain Leaflet.
+      var self = this;
+      var geo = window.KothaKhoj && window.KothaKhoj.geo;
+      if (geo) {
+        geo.locate(this.map, {
+          onFirst: function(fix) {
+            self.map.setView([fix.lat, fix.lng], Math.max(self.map.getZoom(), 16));
+          },
+          onDone: function(fix) {
+            self.$('.locate-me').removeClass('locating').text('My Location');
+            if (fix) {
+              $(S).trigger('userlocated', [L.latLng(fix.lat, fix.lng)]);
+            }
+          },
+          onError: function(message) {
+            self.$('.locate-me').removeClass('locating').text('My Location');
+            alert(message);
+          }
+        });
+        return;
+      }
       this.map.locate({ enableHighAccuracy: true, maximumAge: 0 });
     },
     startDirections: function(destLatLng) {

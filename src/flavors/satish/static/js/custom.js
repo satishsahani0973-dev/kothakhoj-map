@@ -83,6 +83,228 @@
     $('body').removeClass('signin-gate');
   });
 
+  // ---- Location engine ----------------------------------------------------
+  // One GPS engine for the whole site: the My Location button and the
+  // add-place flow share it. It watches the GPS for a few seconds (readings
+  // sharpen fast), keeps the best fix, draws the familiar blue dot +
+  // accuracy circle, then stops to save battery.
+  KK.geo = {
+    REFINE_MS: 5000,
+    FRESH_MS: 2 * 60 * 1000,
+    GOOD_ACCURACY_M: 50,
+    lastFix: null,
+
+    // Pure: is a stored fix still fresh enough to reuse without asking GPS?
+    isFresh: function(fix, now) {
+      if (!fix || !fix.ts) { return false; }
+      return ((now || Date.now()) - fix.ts) < KK.geo.FRESH_MS;
+    },
+
+    // Pure: 'good' means trust it; 'weak' means tell the person to drag.
+    quality: function(accuracy) {
+      return (typeof accuracy === 'number' && accuracy <= KK.geo.GOOD_ACCURACY_M) ? 'good' : 'weak';
+    },
+
+    _dot: null,
+    _circle: null,
+    _watchId: null,
+
+    drawFix: function(map, fix) {
+      var L = window.L;
+      var latlng = [fix.lat, fix.lng];
+      if (!KK.geo._dot) {
+        KK.geo._circle = L.circle(latlng, {
+          radius: fix.accuracy,
+          color: '#1a73e8', weight: 1.5, opacity: 0.35,
+          fillColor: '#1a73e8', fillOpacity: 0.12, interactive: false
+        }).addTo(map);
+        KK.geo._dot = L.circleMarker(latlng, {
+          radius: 6, color: '#fff', weight: 2.5,
+          fillColor: '#1a73e8', fillOpacity: 1, interactive: false
+        }).addTo(map);
+      } else {
+        KK.geo._circle.setLatLng(latlng).setRadius(fix.accuracy);
+        KK.geo._dot.setLatLng(latlng);
+      }
+    },
+
+    stop: function() {
+      if (KK.geo._watchId !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(KK.geo._watchId);
+        KK.geo._watchId = null;
+      }
+    },
+
+    // locate(map, {onFirst, onDone, onError}): onFirst fires on the first
+    // reading (move the map now), onDone fires with the BEST fix after the
+    // refine window, onError with a human message.
+    locate: function(map, opts) {
+      opts = opts || {};
+      if (!navigator.geolocation) {
+        if (opts.onError) { opts.onError('This phone or browser has no location support. Just drag the map — that works too.'); }
+        return;
+      }
+      KK.geo.stop();
+      var best = null;
+      var gotFirst = false;
+
+      KK.geo._watchId = navigator.geolocation.watchPosition(function(pos) {
+        var fix = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: Math.round(pos.coords.accuracy || 9999),
+          ts: Date.now()
+        };
+        if (!best || fix.accuracy <= best.accuracy) { best = fix; }
+        KK.geo.lastFix = best;
+        KK.geo.drawFix(map, best);
+        if (!gotFirst) {
+          gotFirst = true;
+          if (opts.onFirst) { opts.onFirst(best); }
+          // Close the watch after the refine window, keeping the best fix.
+          setTimeout(function() {
+            KK.geo.stop();
+            if (opts.onDone) { opts.onDone(best); }
+          }, KK.geo.REFINE_MS);
+        }
+      }, function(err) {
+        KK.geo.stop();
+        var message = err && err.code === 1 ?
+          'Location is refused for this site. Turn it on in your phone settings, or just drag the map — that works too.' :
+          'Your location could not be found. Just drag the map — that works too.';
+        if (opts.onError) { opts.onError(message); }
+      }, { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 });
+    }
+  };
+
+  // ---- "Use my current location" in the add-place flow --------------------
+  // The status box sits next to the form (not inside the <form> element),
+  // so target it directly — only one add-place screen exists at a time.
+  function setLocationStatus(kind, html) {
+    $('.use-location-status')
+      .removeClass('is-hidden good weak')
+      .addClass(kind)
+      .html(html);
+    $('.use-location-hint').addClass('is-hidden');
+  }
+
+  function currentMap() {
+    var app = window.app;
+    return app && app.appView && app.appView.mapView && app.appView.mapView.map;
+  }
+
+  function applyFixToForm(fix, isAuto) {
+    var map = currentMap();
+    if (!map) { return; }
+    map.setView([fix.lat, fix.lng], Math.max(map.getZoom(), 17));
+    KK.geo.drawFix(map, fix);
+    // Tell the app the pin is set here, same as the My Location hook does.
+    $(window.Shareabouts).trigger('userlocated', [window.L.latLng(fix.lat, fix.lng)]);
+
+    var q = KK.geo.quality(fix.accuracy);
+    if (q === 'good') {
+      setLocationStatus('good',
+        (isAuto ? '<strong>Pin already on you</strong>' : '<strong>You are here</strong>') +
+        ' — within ~' + fix.accuracy + ' m.<br>Drag a little if the pin is not exactly on the building.');
+    } else {
+      setLocationStatus('weak',
+        '<strong>GPS is only sure within ~' + fix.accuracy + ' m here.</strong><br>' +
+        'Please drag the map to the exact building.');
+    }
+    $('.use-location-btn').prop('disabled', false).text('Find me again');
+  }
+
+  $(document).on('click', '.use-location-btn', function() {
+    var $btn = $(this);
+    var map = currentMap();
+    if (!map) { return; }
+    $btn.prop('disabled', true).text('Finding you…');
+    KK.geo.locate(map, {
+      onFirst: function(fix) { map.setView([fix.lat, fix.lng], Math.max(map.getZoom(), 17)); },
+      onDone: function(fix) { applyFixToForm(fix, false); },
+      onError: function(message) {
+        setLocationStatus('weak', message);
+        $btn.prop('disabled', false).text('Use my current location');
+      }
+    });
+  });
+
+  // When the add-place form opens and we already have a fresh fix, start
+  // the pin on the poster automatically — zero taps.
+  $(function() {
+    $(window.Shareabouts).on('panelshow', function(evt, router, fragment) {
+      if (fragment !== 'place/new') { return; }
+      if (KK.geo.isFresh(KK.geo.lastFix)) {
+        setTimeout(function() { applyFixToForm(KK.geo.lastFix, true); }, 150);
+      }
+    });
+  });
+
+  // ---- First-open auto-fit ------------------------------------------------
+  // On a plain open (no /place/ link, no coordinates in the URL), frame the
+  // map around the listings once they load: right zoom for every screen,
+  // valley only, hills ignored. The user's own dragging always wins.
+  // One stray faraway pin must not zoom the whole map out, so we frame the
+  // dense cluster: pins within MAX_KM of the median point.
+  KK.fit = {
+    MAX_KM: 10,
+
+    // Pure: [[lat, lng], ...] -> the pins near the median point. With fewer
+    // than 3 pins there is no "cluster" to speak of; keep them all.
+    cluster: function(points) {
+      if (!points || points.length < 3) { return points || []; }
+      var lats = points.map(function(p) { return p[0]; }).sort(function(a, b) { return a - b; });
+      var lngs = points.map(function(p) { return p[1]; }).sort(function(a, b) { return a - b; });
+      var mid = Math.floor(points.length / 2);
+      var mlat = lats[mid], mlng = lngs[mid];
+      var kmPerDegLat = 111;
+      var kmPerDegLng = 111 * Math.cos(mlat * Math.PI / 180);
+      var keep = points.filter(function(p) {
+        var dLat = (p[0] - mlat) * kmPerDegLat;
+        var dLng = (p[1] - mlng) * kmPerDegLng;
+        return Math.sqrt(dLat * dLat + dLng * dLng) <= KK.fit.MAX_KM;
+      });
+      return keep.length ? keep : points;
+    }
+  };
+  $(function() {
+    setTimeout(function() {
+      var app = window.app;
+      var map = currentMap();
+      if (!app || !map || !window.Backbone) { return; }
+      var fragment = window.Backbone.history.getFragment() || '';
+      if (/^(place\/|list|\d)/.test(fragment)) { return; }
+
+      var userMoved = false;
+      map.once('dragstart', function() { userMoved = true; });
+      $(document).one('click', '.leaflet-control-zoom a', function() { userMoved = true; });
+
+      var lastCount = -1;
+      var tries = 0;
+      var timer = setInterval(function() {
+        tries++;
+        if (userMoved || tries > 24) { clearInterval(timer); return; }
+        var coll = app.collection;
+        var count = coll ? coll.length : 0;
+        if (count > 0 && count === lastCount) {
+          clearInterval(timer);
+          var latlngs = [];
+          coll.each(function(model) {
+            var g = model.get('geometry');
+            if (g && g.coordinates && g.type === 'Point') {
+              latlngs.push([g.coordinates[1], g.coordinates[0]]);
+            }
+          });
+          latlngs = KK.fit.cluster(latlngs);
+          if (latlngs.length && !userMoved) {
+            map.fitBounds(latlngs, { padding: [40, 40], maxZoom: 16 });
+          }
+        }
+        lastCount = count;
+      }, 500);
+    }, 0);
+  });
+
   // ---- QR login card scanner ---------------------------------------------
   // The same card works two ways: a phone camera opens the /qr/<secret>
   // link directly, and this in-panel scanner reads the same link with the

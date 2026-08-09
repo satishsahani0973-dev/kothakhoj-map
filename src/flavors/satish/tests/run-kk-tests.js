@@ -98,6 +98,44 @@ check('orange for future date', () => {
   assert.ok(html.includes('free-badge-later') && html.includes('free from'));
 });
 
+// ---- location engine decisions ----
+console.log('geo.isFresh / geo.quality');
+check('fresh fix within 2 minutes -> reuse', () => {
+  const t = 1000000000;
+  assert.strictEqual(KK.geo.isFresh({ ts: t - 60 * 1000, lat: 1, lng: 1 }, t), true);
+});
+check('old or missing fix -> ask GPS again', () => {
+  const t = 1000000000;
+  assert.strictEqual(KK.geo.isFresh({ ts: t - 3 * 60 * 1000 }, t), false);
+  assert.strictEqual(KK.geo.isFresh(null, t), false);
+  assert.strictEqual(KK.geo.isFresh({}, t), false);
+});
+check('accuracy <= 50 m -> good, else weak', () => {
+  assert.strictEqual(KK.geo.quality(15), 'good');
+  assert.strictEqual(KK.geo.quality(50), 'good');
+  assert.strictEqual(KK.geo.quality(80), 'weak');
+  assert.strictEqual(KK.geo.quality(undefined), 'weak');
+});
+
+// ---- auto-fit cluster ----
+console.log('fit.cluster');
+check('drops a faraway outlier, keeps the dense cluster', () => {
+  const butwal = [[27.62, 83.45], [27.63, 83.46], [27.61, 83.44], [27.64, 83.47]];
+  const outlier = [27.42, 83.26]; // ~30 km away
+  const kept = KK.fit.cluster(butwal.concat([outlier]));
+  assert.strictEqual(kept.length, 4);
+  assert.ok(!kept.some(p => p[0] === 27.42));
+});
+check('fewer than 3 pins -> keep all (no cluster to judge)', () => {
+  const two = [[27.62, 83.45], [27.42, 83.26]];
+  assert.deepStrictEqual(KK.fit.cluster(two), two);
+  assert.deepStrictEqual(KK.fit.cluster([]), []);
+});
+check('all pins close together -> all kept', () => {
+  const pts = [[27.62, 83.45], [27.63, 83.46], [27.61, 83.44]];
+  assert.strictEqual(KK.fit.cluster(pts).length, 3);
+});
+
 // ---- QR token extraction ----
 console.log('qr.extractToken');
 check('full card URL -> token', () =>

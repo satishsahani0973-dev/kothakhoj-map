@@ -391,6 +391,41 @@ body.signin-gate #list-container {
   font-size: 15px;
 }
 
+/* "Use my current location" in the add-place flow */
+.use-location {
+  margin: 0 0 12px;
+}
+.use-location-btn {
+  background: #1a73e8 !important;
+  color: #fff !important;
+  font-weight: bold;
+  border: none;
+}
+.use-location-btn:disabled {
+  opacity: 0.75;
+}
+.use-location-hint {
+  margin: 6px 0 0;
+  text-align: center;
+  font-size: 12px;
+  color: #888;
+}
+.use-location-status {
+  margin: 8px 0 0;
+  border-radius: 6px;
+  padding: 9px 11px;
+  font-size: 13px;
+  text-align: center;
+}
+.use-location-status.good {
+  background: #eaf3de;
+  color: #27500a;
+}
+.use-location-status.weak {
+  background: #faeeda;
+  color: #854f0b;
+}
+
 /* Inline problem box at the top of the sign-in panel (wrong password or
    dead QR card) with the WhatsApp help button */
 .signin-error {

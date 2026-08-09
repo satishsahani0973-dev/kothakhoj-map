@@ -1,6 +1,12 @@
         <p class="drag-marker-instructions">{{#_}}Drag the map to your location.{{/_}}</p>
         <p class="drag-marker-warning is-visuallyhidden">{{#_}}It looks like you didn't set your location yet. Please drag the map to your location.{{/_}}</p>
 
+        <div class="use-location">
+          <button type="button" class="btn btn-block use-location-btn">{{#_}}Use my current location{{/_}}</button>
+          <p class="use-location-hint">{{#_}}Standing at the room? One tap puts the pin here. Your phone may ask to allow location — tap Allow.{{/_}}</p>
+          <p class="use-location-status is-hidden" aria-live="polite"></p>
+        </div>
+
         <h4 class="">{{ place_config.title }}</h4>
 
         <p>{{ place_config.help_text }}</p>
