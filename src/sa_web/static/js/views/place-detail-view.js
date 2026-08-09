@@ -101,10 +101,18 @@ var Shareabouts = Shareabouts || {};
 
       this.$el.html(Handlebars.templates['place-detail'](data));
 
-    // Only show the delete button when the server will actually allow the
-    // delete, i.e. when the session token matches the one stored on the place.
-    // (The gold "Yours" marker uses a looser, browser-side rule on purpose.)
-    if (this.options.userToken && this.model.get('user_token') === this.options.userToken) {
+    // Show the delete button when the server will accept the delete. A
+    // signed-in poster owns their place by ACCOUNT, so match on the current
+    // user's username against the place's submitter — this follows their
+    // login to any device. Fall back to the legacy session-token match for
+    // places created anonymously.
+    var currentUser = S.bootstrapped && S.bootstrapped.currentUser;
+    var submitter = this.model.get('submitter');
+    var ownedByAccount = !!(currentUser && submitter &&
+                            submitter.username && submitter.username === currentUser.username);
+    var ownedByToken = !!(this.options.userToken &&
+                          this.model.get('user_token') === this.options.userToken);
+    if (ownedByAccount || ownedByToken) {
       this.$el.find('.place-header').after(
         $('<div class="place-delete-bar"><button class="delete-place btn">Delete this place</button></div>')
       );
