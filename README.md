@@ -1,3 +1,15 @@
+KothaKhoj
+=========
+
+KothaKhoj (kothakhoj.com) is a room and flat finding map for students in
+Butwal, Nepal. It is a **modified version of
+[Shareabouts](https://github.com/openplans/shareabouts)** by OpenPlans,
+used and distributed under the **GNU GPL v3** license (see LICENSE).
+KothaKhoj modifications include a two-login system, room availability
+colors, QR login cards, a college map layer, and Nepal-specific features.
+
+The original Shareabouts README follows.
+
 Shareabouts [![Build Status](https://secure.travis-ci.org/openplans/shareabouts.png)](http://travis-ci.org/openplans/shareabouts)
 ===========
 
