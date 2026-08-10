@@ -274,29 +274,36 @@ body.signin-gate #list-container {
   display: none;
 }
 
-/* Header Sign In as a direct link (routes to the /page/signin panel) */
-.sign-in-link {
-  color: #a3c7d9;
+/* Header Sign In as a direct link (routes to the /page/signin panel),
+   styled as the same solid chip as the List All Places button */
+.sign-in-link,
+.sign-in-link:visited,
+.sign-in-link:link {
+  background-color: #007fbf;
+  color: #eee;
   font-size: 0.75em;
   text-transform: uppercase;
   text-align: center;
   text-decoration: none;
-  line-height: 3.25;
   float: right;
   display: block;
-  padding: 0 0.5em;
-  margin: 0 0 0 0.5em;
-  font-weight: bold;
+  padding: 0.325em 0.625em;
+  margin: 0.5em 0.5em 0 0.5em;
+  font-weight: 600;
+  border: 3px solid rgba(0,0,0,0.05);
+  border-radius: 3px;
+  box-shadow: -0.25em 0.25em 0 rgba(0,0,0,0.1);
+  cursor: pointer;
 }
 .sign-in-link:hover {
+  background-color: #00aaff;
   color: #fff;
 }
 @media only screen and (min-width: 60em) {
   .sign-in-link {
-    font-size: 1em;
+    font-size: 0.875em;
     line-height: 1.5;
-    padding: 0.5em;
-    margin: 0.75em 0.75em 0 0.75em;
+    margin: 0.875em 0.75em 0 0.75em;
     position: relative;
     z-index: 3;
   }
