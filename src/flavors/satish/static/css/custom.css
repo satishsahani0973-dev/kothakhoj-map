@@ -301,9 +301,10 @@ body.signin-gate #list-container {
 }
 @media only screen and (min-width: 60em) {
   .sign-in-link {
-    /* Same box and top edge as the List All Places button beside it */
+    /* Same box as the List All Places button beside it; the top margin is
+       measured against it live (the JS-rendered pages nav shifts it down) */
     font-size: 0.875em;
-    margin: 1.125em 0.75em 0 0.75em;
+    margin: 1.95em 0.75em 0 0.75em;
     position: relative;
     z-index: 3;
   }
