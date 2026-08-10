@@ -287,7 +287,7 @@ body.signin-gate #list-container {
   text-decoration: none;
   float: right;
   display: block;
-  padding: 0.325em 0.625em;
+  padding: 0.5em 0.75em;
   margin: 0.5em 0.5em 0 0.5em;
   font-weight: 600;
   border: 3px solid rgba(0,0,0,0.05);
@@ -301,9 +301,9 @@ body.signin-gate #list-container {
 }
 @media only screen and (min-width: 60em) {
   .sign-in-link {
+    /* Same box and top edge as the List All Places button beside it */
     font-size: 0.875em;
-    line-height: 1.5;
-    margin: 0.875em 0.75em 0 0.75em;
+    margin: 1.125em 0.75em 0 0.75em;
     position: relative;
     z-index: 3;
   }
