@@ -47,7 +47,7 @@ map:
     # Mapbox GL Layers
     # ================
     - type: mapbox
-      style: mapbox://styles/mapbox/streets-v8
+      style: mapbox://styles/mapbox/streets-v12
       accessToken:
       fallback:
         url: https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
