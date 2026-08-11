@@ -287,14 +287,99 @@ body.signin-gate #list-container {
     min-height: 300px;
   }
   body:not(.content-visible) #add-place-btn-container {
+    position: absolute;
+    left: 12px;
+    right: auto;
+    bottom: 3.2em;
+    width: auto;
+    margin: 0;
+    padding: 0;
+    background: none;
+    box-shadow: none;
+    border: none;
+    /* Above the Leaflet panes (z 400-700), which otherwise paint over it
+       on real phones. */
+    z-index: 1100;
+  }
+  /* Signed in: a floating "+ Add a place" pill over the map */
+  body:not(.content-visible) #add-place-btn-container #add-place {
+    display: inline-block;
+    width: auto;
+    background: #00aaff;
+    color: #fff;
+    border: none;
+    border-radius: 22px;
+    padding: 10px 17px;
+    font-size: 15px;
+    box-shadow: 0 2px 9px rgba(0, 0, 0, 0.35);
+  }
+  body:not(.content-visible) #add-place-btn-container #add-place::before {
+    content: "+";
+    font-size: 19px;
+    font-weight: 700;
+    margin-right: 7px;
+    vertical-align: -1px;
+  }
+  /* Browsing: plain white welcome text over the map, no box */
+  body:not(.content-visible) #add-place-btn-container .browse-welcome {
+    display: inline-block;
+    width: auto;
+    background: none;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    text-align: left;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+    line-height: 1.4;
+  }
+  body:not(.content-visible) #add-place-btn-container .browse-welcome::after {
+    content: "Tap a pin — find your room.";
+    display: block;
+    font-size: 12px;
+    font-weight: normal;
+    opacity: 0.95;
+  }
+  body:not(.content-visible) #colophon {
+    display: none;
+  }
+  /* The activity feed as a single quiet line riding above the button:
+     latest item only, truncated, no avatars, no screen-filling list. */
+  body:not(.content-visible) #ticker {
     position: fixed;
     left: 0;
     right: 0;
     bottom: 0;
-    margin: 0;
-    z-index: 30;
+    z-index: 1090;
+    background: rgba(255, 255, 255, 0.95);
+    max-height: 2.1em;
+    overflow: hidden;
+    padding: 3px 10px;
+    box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.15);
   }
-  body:not(.content-visible) #colophon {
+  body:not(.content-visible) #ticker .recent-points li:not(:first-child) {
+    display: none;
+  }
+  body:not(.content-visible) #ticker .recent-points li {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 12px;
+    background: none;
+    margin: 0;
+    padding: 2px 0;
+  }
+  body:not(.content-visible) #ticker img {
+    display: none;
+  }
+  body.kk-routing #ticker {
+    display: none;
+  }
+  /* No activity yet -> no empty white strip (older browsers without :has
+     simply show the empty strip, which is harmless) */
+  body:not(.content-visible) #ticker:not(:has(.recent-points li)) {
     display: none;
   }
 

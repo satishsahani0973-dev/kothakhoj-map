@@ -120,9 +120,9 @@ place_types:
 
 
 activity:
-  # Disabled: the "Someone created a room" feed ate half the phone screen
-  # and told students nothing a pin doesn't. The map is the feed.
-  enabled: false
+  # On, but shown as a single-line strip on phones (flavor CSS): the full
+  # list used to eat half the screen.
+  enabled: true
   # How often to refresh the activity list, in milliseconds.
   interval: 30000
 
