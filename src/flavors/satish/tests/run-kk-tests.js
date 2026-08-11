@@ -217,5 +217,38 @@ check('focused + future -> big orange marker', () =>
 check('focused + available -> big green marker', () =>
   assert.ok(firstIcon({ layer: { focused: true } }).includes('marker-4bbd45')));
 
+// ---- directions logic ----
+console.log('route (directions logic)');
+check('short trip -> walking', () =>
+  assert.strictEqual(KK.route.pickProfile(1200, null), 'walking'));
+check('long trip -> driving', () =>
+  assert.strictEqual(KK.route.pickProfile(9000, null), 'driving'));
+check('remembered cycling wins', () =>
+  assert.strictEqual(KK.route.pickProfile(400, 'cycling'), 'cycling'));
+check('remembered walking ignored when unwalkable', () =>
+  assert.strictEqual(KK.route.pickProfile(12000, 'walking'), 'driving'));
+check('junk preference ignored', () =>
+  assert.strictEqual(KK.route.pickProfile(500, 'rocket'), 'walking'));
+check('summary under a km rounds to 10 m', () =>
+  assert.strictEqual(KK.route.fmtSummary(846, 700), '850 m · 12 min'));
+check('summary km with hour formatting', () =>
+  assert.strictEqual(KK.route.fmtSummary(2400, 3900), '2.4 km · 1h 05min'));
+check('summary never shows 0 min', () =>
+  assert.strictEqual(KK.route.fmtSummary(40, 20), '40 m · 1 min'));
+check('arrived inside 30 m', () =>
+  assert.strictEqual(KK.route.isArrived(29), true));
+check('not arrived at 31 m', () =>
+  assert.strictEqual(KK.route.isArrived(31), false));
+check('waLink plain mobile', () =>
+  assert.strictEqual(KK.route.waLink('9812345678'), 'https://wa.me/9779812345678'));
+check('waLink strips leading zero', () =>
+  assert.strictEqual(KK.route.waLink('09812345678'), 'https://wa.me/9779812345678'));
+check('waLink strips country code and separators', () =>
+  assert.strictEqual(KK.route.waLink('+977 981-2345678'), 'https://wa.me/9779812345678'));
+check('waLink rejects short numbers', () =>
+  assert.strictEqual(KK.route.waLink('071-591'), null));
+check('waLink rejects empty', () =>
+  assert.strictEqual(KK.route.waLink(''), null));
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

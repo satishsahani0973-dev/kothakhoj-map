@@ -51,7 +51,7 @@ var Shareabouts = Shareabouts || {};
 
       this.$el.on('click', '.get-directions', function(evt) {
         evt.preventDefault();
-        $(S).trigger('getdirections', [L.latLng(+$(this).data('lat'), +$(this).data('lng'))]);
+        $(S).trigger('getdirections', [L.latLng(+$(this).data('lat'), +$(this).data('lng')), self.model]);
       });
 
       // Easy share: use the phone's native share sheet (WhatsApp, Facebook,

@@ -429,7 +429,7 @@ var Shareabouts = Shareabouts || {};
       }
       this.map.locate({ enableHighAccuracy: true, maximumAge: 0 });
     },
-    startDirections: function(destLatLng) {
+    startDirections: function(destLatLng, placeModel) {
       var self = this;
       this.stopDirections();
 
@@ -439,89 +439,258 @@ var Shareabouts = Shareabouts || {};
       }
 
       this.routingDest = destLatLng;
+      var KKR = window.KothaKhoj && window.KothaKhoj.route;
+      var contact = placeModel && placeModel.get ? placeModel.get('contact_number') : null;
+      var waHref = (KKR && contact) ? KKR.waLink(contact) : null;
 
-      // Show immediate feedback (and a cancel button) while GPS is searching.
-      this.$endRouteControl = $(
-        '<div class="leaflet-control leaflet-bar end-route-control">' +
-          '<a href="#" role="button" title="End route" aria-label="End route"' +
-            ' style="width:auto; padding:0 10px; font-weight:bold;' +
-            ' color:#c0392b; white-space:nowrap;">Locating&hellip;</a>' +
-        '</div>'
-      );
-      this.$endRouteControl.on('click', 'a', function(evt) {
-        evt.preventDefault();
+      var state = 'locating';
+      var profile = 'walking';
+      var lastRouted = null;
+      var lastSummary = null;
+      var started = false;
+      var arrived = false;
+      var lastRouteTime = 0;
+      var MODES = [
+        { key: 'walking', label: 'Walk' },
+        { key: 'cycling', label: 'Cycle' },
+        { key: 'driving', label: 'Drive' }
+      ];
+
+      // One bottom card carries the whole flow:
+      // locating -> route preview (with Start) -> live navigation -> arrived.
+      var $card = this.$routeCard = $('<div class="kk-route-card"></div>').css({
+        position: 'absolute', left: '10px', right: '10px', bottom: '14px',
+        maxWidth: '380px', margin: '0 auto', background: '#fff', color: '#222',
+        borderRadius: '14px', boxShadow: '0 2px 14px rgba(0,0,0,0.35)',
+        padding: '12px 14px', zIndex: 1000, fontSize: '14px'
+      });
+      this.$el.append($card);
+      $card.on('mousedown dblclick touchstart pointerdown wheel', function(evt) {
         evt.stopPropagation();
+      });
+
+      var render = function() {
+        if (!self.$routeCard) { return; }
+        var parts = (lastSummary && KKR) ?
+          KKR.fmtSummary(lastSummary.totalDistance, lastSummary.totalTime).split(' · ') :
+          null;
+        var big = parts ? parts[1] : '&hellip;';
+        var small = parts ? parts[0] : '';
+        var html = '';
+        if (state === 'locating') {
+          html =
+            '<div style="display:flex; align-items:center; justify-content:space-between;">' +
+              '<span>Locating&hellip;</span>' +
+              '<a href="#" class="kk-rc-cancel" style="color:#c0392b; font-weight:bold;' +
+                ' text-decoration:none; padding:0 4px;">&#10005;</a>' +
+            '</div>';
+        } else if (state === 'preview') {
+          var chips = '';
+          $.each(MODES, function(i, m) {
+            var on = m.key === profile;
+            chips += '<a href="#" class="kk-rc-mode" data-profile="' + m.key + '"' +
+              ' style="text-decoration:none; border-radius:14px; padding:4px 12px; font-size:12px;' +
+              ' border:1px solid ' + (on ? '#007fbf' : '#ddd') + ';' +
+              ' background:' + (on ? '#007fbf' : '#fff') + ';' +
+              ' color:' + (on ? '#fff' : '#444') + ';">' + m.label + '</a>';
+          });
+          html =
+            '<div style="font-size:22px; font-weight:bold;">' + big +
+              ' <span style="font-size:13px; color:#888; font-weight:normal;">' + small + '</span></div>' +
+            '<div style="display:flex; gap:7px; margin:9px 0 11px;">' + chips + '</div>' +
+            '<div style="display:flex; gap:8px;">' +
+              '<a href="#" class="kk-rc-start" style="flex:2.2; background:#2e9e44; color:#fff;' +
+                ' border-radius:9px; text-align:center; padding:9px 0; font-weight:bold;' +
+                ' text-decoration:none;">Start</a>' +
+              '<a href="#" class="kk-rc-cancel" style="flex:1; border:1px solid #ddd; color:#666;' +
+                ' border-radius:9px; text-align:center; padding:9px 0; text-decoration:none;">Cancel</a>' +
+            '</div>';
+        } else if (state === 'nav') {
+          html =
+            '<div style="font-size:22px; font-weight:bold;">' + big +
+              ' <span style="font-size:13px; color:#888; font-weight:normal;">' + small + ' left</span></div>' +
+            '<div style="font-size:12px; color:#2e7d32; margin:4px 0 9px;">You are on the way</div>' +
+            '<a href="#" class="kk-rc-stop" style="display:block; border:1px solid #e5b8b2; color:#c0392b;' +
+              ' border-radius:9px; text-align:center; padding:8px 0; font-weight:bold;' +
+              ' text-decoration:none;">Stop</a>';
+        } else if (state === 'arrived') {
+          html =
+            '<div style="font-size:18px; font-weight:bold; color:#1d7a34;">&#10003; You have arrived!</div>' +
+            '<div style="font-size:12px; color:#37623f; margin:5px 0 10px;">Like the room? Talk to the owner.</div>' +
+            '<div style="display:flex; gap:8px;">' +
+              (waHref ?
+                '<a href="' + waHref + '" target="_blank" rel="noopener" style="flex:2; background:#25a05a;' +
+                  ' color:#fff; border-radius:9px; text-align:center; padding:9px 0; font-weight:bold;' +
+                  ' text-decoration:none;">WhatsApp the owner</a>' : '') +
+              '<a href="#" class="kk-rc-close" style="flex:1; border:1px solid #ddd; color:#666;' +
+                ' border-radius:9px; text-align:center; padding:9px 0; text-decoration:none;">Close</a>' +
+            '</div>';
+        }
+        $card.css('background', state === 'arrived' ? '#e9f6ec' : '#fff');
+        $card.html(html);
+      };
+
+      $card.on('click', '.kk-rc-cancel, .kk-rc-stop, .kk-rc-close', function(evt) {
+        evt.preventDefault();
         self.stopDirections();
       });
-      this.$endRouteControl.on('mousedown dblclick touchstart', function(evt) {
-        evt.stopPropagation();
+      $card.on('click', '.kk-rc-start', function(evt) {
+        evt.preventDefault();
+        if (started || state !== 'preview') { return; }
+        started = true;
+        state = 'nav';
+        render();
+        // On phones the header collapses while navigating (flavor CSS keys
+        // off this class) so the map gets almost the whole screen.
+        $('body').addClass('kk-routing');
+        self.map.invalidateSize();
+        if (lastRouted) {
+          self.map.setView(lastRouted, Math.max(self.map.getZoom(), 16));
+        }
+        beginWatch();
       });
-      this.$('.leaflet-top.leaflet-right').append(this.$endRouteControl);
+      $card.on('click', '.kk-rc-mode', function(evt) {
+        evt.preventDefault();
+        var p = $(this).data('profile');
+        if (p === profile || state !== 'preview') { return; }
+        profile = p;
+        try { window.localStorage.setItem('kk-route-mode', p); } catch (e) {}
+        lastSummary = null;
+        if (self.routingControl) {
+          self.map.removeControl(self.routingControl);
+          self.routingControl = null;
+        }
+        render();
+        makeRoute(p, true);
+      });
+
+      // Build the route for a given travel profile. Walking gives the
+      // shortest door-to-door path for nearby places, but Mapbox walking
+      // has a maximum distance; if it fails, fall back to driving once.
+      // Manual mode taps land here too (isFallback: no second fallback).
+      var makeRoute = function(prof, isFallback) {
+        var fitOnce = false;
+        self.routingControl = L.Routing.control({
+          waypoints: [lastRouted, destLatLng],
+          router: L.Routing.mapbox(S.bootstrapped.mapboxToken, { profile: 'mapbox/' + prof }),
+          fitSelectedRoutes: false,
+          addWaypoints: false,
+          draggableWaypoints: false,
+          show: false,
+          collapsible: true,
+          lineOptions: {
+            styles: [
+              { color: '#ffffff', opacity: 0.9, weight: 9 },
+              { color: '#007fbf', opacity: 1, weight: 5 }
+            ]
+          },
+          // "You" is the familiar blue dot; the room already has its own
+          // pin on the map, so no second marker at the destination.
+          createMarker: function(i, wp) {
+            if (i === 0) {
+              return L.circleMarker(wp.latLng, {
+                radius: 8, color: '#fff', weight: 2,
+                fillColor: '#007fbf', fillOpacity: 1
+              });
+            }
+            return null;
+          }
+        }).addTo(self.map);
+
+        // Preview: zoom the map out so the student sees the WHOLE trip -
+        // where they are, where the room is, and the road between - with
+        // room for the bottom card. After Start, never re-zoom on re-routes.
+        self.routingControl.on('routesfound', function(e) {
+          var route = e.routes && e.routes[0];
+          if (route && !fitOnce && !started) {
+            fitOnce = true;
+            try {
+              self.map.fitBounds(L.latLngBounds(route.coordinates), {
+                paddingTopLeft: [30, 60],
+                paddingBottomRight: [30, 190]
+              });
+            } catch (err) {
+              self.map.fitBounds(L.latLngBounds([lastRouted, destLatLng]).pad(0.25));
+            }
+          }
+          if (route && route.summary) {
+            lastSummary = route.summary;
+            render();
+          }
+        });
+
+        self.routingControl.on('routingerror', function() {
+          if (!isFallback && prof === 'walking') {
+            if (self.routingControl) {
+              self.map.removeControl(self.routingControl);
+              self.routingControl = null;
+            }
+            profile = 'driving';
+            render();
+            makeRoute('driving', true);
+          } else {
+            self.stopDirections();
+            alert('Could not find a route to this place.');
+          }
+        });
+      };
+
+      // Live navigation: follow the GPS, re-route as the user moves, notice
+      // the arrival. Runs only after the student taps Start.
+      var beginWatch = function() {
+        lastRouteTime = Date.now();
+        // Keep the phone screen awake while walking (needs HTTPS; silently
+        // unavailable elsewhere).
+        if (navigator.wakeLock && navigator.wakeLock.request) {
+          navigator.wakeLock.request('screen').then(function(lock) {
+            self.routeWakeLock = lock;
+          }).catch(function() {});
+        }
+        self.geoWatchId = navigator.geolocation.watchPosition(function(pos) {
+          // Ignore inaccurate fixes (cell-tower guesses etc.)
+          if (pos.coords.accuracy > 60) { return; }
+          var now = L.latLng(pos.coords.latitude, pos.coords.longitude);
+
+          // Arrival: flip the card, stop following the GPS. The card offers
+          // the landlord's WhatsApp and stays until closed.
+          if (!arrived && KKR && KKR.isArrived(now.distanceTo(destLatLng))) {
+            arrived = true;
+            state = 'arrived';
+            render();
+            if (navigator.vibrate) { navigator.vibrate([200, 100, 200]); }
+            if (self.geoWatchId != null) {
+              navigator.geolocation.clearWatch(self.geoWatchId);
+              self.geoWatchId = null;
+            }
+            return;
+          }
+
+          // Only re-route after moving ~15 meters, at most every 10 seconds.
+          if (now.distanceTo(lastRouted) < 15 ||
+              Date.now() - lastRouteTime < 10000) { return; }
+          lastRouted = now;
+          lastRouteTime = Date.now();
+          if (self.routingControl) {
+            self.routingControl.spliceWaypoints(0, 1, now);
+          }
+        }, null, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+      };
+
+      render();
 
       navigator.geolocation.getCurrentPosition(function(pos) {
         // Ignore this result if the user ended the route, or started a newer
         // one to a different place, while we waited for the GPS fix.
         if (self.routingDest !== destLatLng) { return; }
 
-        var here = L.latLng(pos.coords.latitude, pos.coords.longitude);
-
-        // Build the route for a given travel profile. Walking gives the
-        // shortest door-to-door path for nearby places, but Mapbox walking
-        // has a maximum distance; if it fails, fall back to driving once.
-        var makeRoute = function(profile, isFallback) {
-          self.routingControl = L.Routing.control({
-            waypoints: [here, destLatLng],
-            router: L.Routing.mapbox(S.bootstrapped.mapboxToken, { profile: 'mapbox/' + profile }),
-            fitSelectedRoutes: true,
-            addWaypoints: false,
-            draggableWaypoints: false,
-            show: false,
-            collapsible: true
-          }).addTo(self.map);
-
-          // Fit the map to the route once, then leave the user's view alone
-          // while they move (no re-zoom on every re-route).
-          self.routingControl.on('routesfound', function() {
-            if (self.routingControl) {
-              self.routingControl.options.fitSelectedRoutes = false;
-            }
-          });
-
-          self.routingControl.on('routingerror', function() {
-            if (!isFallback) {
-              // Walking route failed (usually too far) - try driving instead.
-              if (self.routingControl) {
-                self.map.removeControl(self.routingControl);
-                self.routingControl = null;
-              }
-              makeRoute('driving', true);
-            } else {
-              self.stopDirections();
-              alert('Could not find a route to this place.');
-            }
-          });
-        };
-
-        makeRoute('walking', false);
-
-        // Route is being calculated: flip the control from "Locating" to the
-        // real End Route label.
-        if (self.$endRouteControl) {
-          self.$endRouteControl.find('a').html('&#10005; End Route');
-        }
-
-        var lastRouted = here;
-        self.geoWatchId = navigator.geolocation.watchPosition(function(pos) {
-          // Ignore inaccurate fixes (cell-tower guesses etc.)
-          if (pos.coords.accuracy > 60) { return; }
-          var now = L.latLng(pos.coords.latitude, pos.coords.longitude);
-          // Only re-route after moving ~15 meters
-          if (now.distanceTo(lastRouted) < 15) { return; }
-          lastRouted = now;
-          if (self.routingControl) {
-            self.routingControl.spliceWaypoints(0, 1, now);
-          }
-        }, null, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+        lastRouted = L.latLng(pos.coords.latitude, pos.coords.longitude);
+        var saved = null;
+        try { saved = window.localStorage.getItem('kk-route-mode'); } catch (e) {}
+        profile = KKR ?
+          KKR.pickProfile(lastRouted.distanceTo(destLatLng), saved) : 'walking';
+        state = 'preview';
+        render();
+        makeRoute(profile, false);
 
       }, function(err) {
         self.stopDirections();
@@ -537,9 +706,17 @@ var Shareabouts = Shareabouts || {};
         this.map.removeControl(this.routingControl);
         this.routingControl = null;
       }
-      if (this.$endRouteControl) {
-        this.$endRouteControl.remove();
-        this.$endRouteControl = null;
+      if (this.$routeCard) {
+        this.$routeCard.remove();
+        this.$routeCard = null;
+      }
+      if (this.routeWakeLock) {
+        try { this.routeWakeLock.release(); } catch (e) {}
+        this.routeWakeLock = null;
+      }
+      if ($('body').hasClass('kk-routing')) {
+        $('body').removeClass('kk-routing');
+        if (this.map) { this.map.invalidateSize(); }
       }
       this.routingDest = null;
     },

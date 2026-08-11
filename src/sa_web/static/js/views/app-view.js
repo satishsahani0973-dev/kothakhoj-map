@@ -155,12 +155,15 @@ var Shareabouts = Shareabouts || {};
       // When a place detail's Directions button is clicked, start live
       // routing from the user's location to the place. Clicking Directions
       // again for the same place stops the route (toggle).
-      $(S).on('getdirections', function(evt, destLatLng) {
+      $(S).on('getdirections', function(evt, destLatLng, placeModel) {
         var mv = self.mapView;
         if (mv.routingControl && mv.routingDest && mv.routingDest.equals(destLatLng)) {
           mv.stopDirections();
         } else {
-          mv.startDirections(destLatLng);
+          // Get the detail panel out of the way first - on phones it covers
+          // the whole map, and the route preview must be visible.
+          self.hidePanel();
+          mv.startDirections(destLatLng, placeModel);
         }
       });
 

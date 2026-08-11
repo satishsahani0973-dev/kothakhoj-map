@@ -49,6 +49,46 @@
     };
   };
 
+  // ---- Directions logic ---------------------------------------------------
+  // Pure decisions for the routing feature (map-view.js reads these): which
+  // travel mode fits the trip, the "850 m · 12 min" summary line, and when
+  // the walker has actually arrived at the room.
+  KK.route = {
+    MODES: ['walking', 'cycling', 'driving'],
+
+    // A remembered choice wins (walking only while the trip stays walkable);
+    // otherwise short trips walk and everything else drives.
+    pickProfile: function(straightMeters, preferred) {
+      if (KK.route.MODES.indexOf(preferred) !== -1 &&
+          (preferred !== 'walking' || straightMeters <= 8000)) {
+        return preferred;
+      }
+      return straightMeters <= 3000 ? 'walking' : 'driving';
+    },
+
+    fmtSummary: function(meters, seconds) {
+      var dist = meters < 950 ?
+        (Math.round(meters / 10) * 10) + ' m' :
+        (meters / 1000).toFixed(1) + ' km';
+      var mins = Math.max(1, Math.round(seconds / 60));
+      var time = mins < 60 ?
+        mins + ' min' :
+        Math.floor(mins / 60) + 'h ' + ('0' + (mins % 60)).slice(-2) + 'min';
+      return dist + ' · ' + time;
+    },
+
+    isArrived: function(metersToDest) { return metersToDest <= 30; },
+
+    // "9812345678" / "09812345678" / "+977 981-2345678" -> a wa.me link;
+    // null when there aren't enough digits to be a phone number.
+    waLink: function(contact) {
+      var digits = String(contact == null ? '' : contact).replace(/[^0-9]/g, '');
+      digits = digits.replace(/^0+/, '').replace(/^977/, '');
+      if (digits.length < 9) { return null; }
+      return 'https://wa.me/977' + digits;
+    }
+  };
+
   if (window.Handlebars) {
     window.Handlebars.registerHelper('free_badge', function(free_ts) {
       var a = KK.availability(free_ts);
@@ -391,6 +431,48 @@
   $(document).on('click', '.signin-scanner-cancel', function() {
     stopScanner($(this).closest('.signin-page'));
   });
+
+  // ---- Login card from the gallery ----------------------------------------
+  // Many students have a photo of their card (WhatsApp, screenshot) rather
+  // than the printed card in hand. Same safety rule as the webcam scanner:
+  // only the token is extracted; we never open the QR's own URL.
+  $(document).on('click', '.signin-scan-file', function() {
+    $(this).closest('.signin-page').find('.signin-scan-input').trigger('click');
+  });
+  $(document).on('change', '.signin-scan-input', function() {
+    var file = this.files && this.files[0];
+    this.value = '';
+    if (!file) { return; }
+    var staticUrl = (window.Shareabouts && window.Shareabouts.bootstrapped &&
+                     window.Shareabouts.bootstrapped.staticUrl) || '/static/';
+    $.getScript(staticUrl + 'libs/jsQR.js').always(function() {
+      if (!window.jsQR) {
+        alert('Could not read the photo. Please type your username and password.');
+        return;
+      }
+      var img = new Image();
+      img.onload = function() {
+        var scale = Math.min(1, 1200 / Math.max(img.width, img.height));
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        var image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        var code = window.jsQR(image.data, image.width, image.height);
+        var token = code && KK.qr.extractToken(code.data);
+        URL.revokeObjectURL(img.src);
+        if (token) {
+          window.location = '/qr/' + token;
+        } else {
+          alert('No login card found in that photo. Try a clearer, closer photo of the QR.');
+        }
+      };
+      img.onerror = function() { alert('Could not open that photo.'); };
+      img.src = URL.createObjectURL(file);
+    });
+  });
+
 
   // A failed sign-in or a dead QR card leaves a short-lived flash cookie:
   // open the sign-in panel and show the problem inline, with a WhatsApp

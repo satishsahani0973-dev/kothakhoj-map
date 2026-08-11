@@ -274,6 +274,54 @@ body.signin-gate #list-container {
   display: none;
 }
 
+/* Phone browse screen ONLY: the map stretches into the dead space and the
+   Add a Place button (or the welcome block) rides at the bottom of the
+   screen, leaving the lower map free for the future directions card.
+   Scoped to body:not(.content-visible): the moment ANY panel opens — the
+   add-place form, a pin's detail, the sign-in page — none of this applies
+   and the layout is exactly the stock deployed one (the stock rule already
+   hides the button while a panel is open). */
+@media only screen and (max-width: 59.9375em) {
+  body:not(.content-visible) #map {
+    height: calc(100vh - 9em);
+    min-height: 300px;
+  }
+  body:not(.content-visible) #add-place-btn-container {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: 0;
+    z-index: 30;
+  }
+  body:not(.content-visible) #colophon {
+    display: none;
+  }
+
+  /* While navigating to a room, everything makes way: header, search bar,
+     and the Add a Place button hide, and the map takes the whole screen
+     (map-view.js toggles body.kk-routing; the directions card floats on
+     the map itself). */
+  body.kk-routing #site-header,
+  body.kk-routing #geocode-address-bar,
+  body.kk-routing #add-place-btn-container {
+    display: none;
+  }
+  body.kk-routing #map-container {
+    top: 0 !important;
+  }
+  body.kk-routing #map {
+    height: 100vh;
+    min-height: 300px;
+  }
+}
+
+/* Directions keep only the line + the bottom card: the turn-by-turn text
+   panel is noise for a walk-to-the-room flow */
+.leaflet-routing-container {
+  display: none;
+}
+
 /* Header Sign In as a direct link (routes to the /page/signin panel),
    styled as the same solid chip as the List All Places button */
 .sign-in-link,
