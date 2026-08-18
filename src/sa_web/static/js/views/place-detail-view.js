@@ -105,14 +105,22 @@ var Shareabouts = Shareabouts || {};
     // signed-in poster owns their place by ACCOUNT, so match on the current
     // user's username against the place's submitter — this follows their
     // login to any device. Fall back to the legacy session-token match for
-    // places created anonymously.
+    // places created anonymously. Device-bound places (shared college
+    // accounts) only offer Delete on the device that created them — the
+    // server enforces the same rule with the stored device token.
     var currentUser = S.bootstrapped && S.bootstrapped.currentUser;
     var submitter = this.model.get('submitter');
     var ownedByAccount = !!(currentUser && submitter &&
                             submitter.username && submitter.username === currentUser.username);
     var ownedByToken = !!(this.options.userToken &&
                           this.model.get('user_token') === this.options.userToken);
-    if (ownedByAccount || ownedByToken) {
+    var deviceBound = !!this.model.get('device_bound');
+    var isMine = _.contains(S.Util.getMyPlaceIds(), this.model.id);
+    var KKRules = window.KothaKhoj && window.KothaKhoj.deviceRules;
+    var canDelete = KKRules
+        ? KKRules.canDelete(deviceBound, ownedByAccount, isMine, ownedByToken)
+        : (ownedByAccount || ownedByToken);
+    if (canDelete) {
       this.$el.find('.place-header').after(
         $('<div class="place-delete-bar"><button class="delete-place btn">Delete this place</button></div>')
       );

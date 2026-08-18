@@ -500,6 +500,11 @@ def api(request, path):
     url = make_resource_uri(path, root)
     headers = {'X-SHAREABOUTS-KEY': api_key,
                'X-CSRFTOKEN': api_csrf_token}
+    # Pass the browser's device token through so the API can verify
+    # device-bound ownership on shared accounts.
+    device_token = request.META.get('HTTP_X_SHAREABOUTS_DEVICE_TOKEN')
+    if device_token:
+        headers['X-SHAREABOUTS-DEVICE-TOKEN'] = device_token
     cookies = {'sessionid': api_session_cookie,
                'csrftoken': api_csrf_token} \
               if api_session_cookie else {'csrftoken': api_csrf_token}

@@ -250,5 +250,25 @@ check('waLink rejects short numbers', () =>
 check('waLink rejects empty', () =>
   assert.strictEqual(KK.route.waLink(''), null));
 
+// ---- Device-bound ownership rules (shared accounts) ----
+check('device rules: bound place, other device -> no delete', () =>
+  assert.strictEqual(KK.deviceRules.canDelete(true, true, false, true), false));
+check('device rules: bound place, my device -> delete', () =>
+  assert.strictEqual(KK.deviceRules.canDelete(true, true, true, false), true));
+check('device rules: bound place, wrong account -> never', () =>
+  assert.strictEqual(KK.deviceRules.canDelete(true, false, true, false), false));
+check('device rules: unbound place keeps account rule', () =>
+  assert.strictEqual(KK.deviceRules.canDelete(false, true, false, false), true));
+check('device rules: unbound anonymous legacy token rule', () =>
+  assert.strictEqual(KK.deviceRules.canDelete(false, false, false, true), true));
+check('yours rules: bound place, other device -> not mine', () =>
+  assert.strictEqual(KK.deviceRules.isMine(true, false, true), false));
+check('yours rules: bound place, my device -> mine', () =>
+  assert.strictEqual(KK.deviceRules.isMine(true, true, false), true));
+check('yours rules: unbound keeps legacy token match', () =>
+  assert.strictEqual(KK.deviceRules.isMine(false, false, true), true));
+check('yours rules: unbound with my-list match', () =>
+  assert.strictEqual(KK.deviceRules.isMine(false, true, false), true));
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

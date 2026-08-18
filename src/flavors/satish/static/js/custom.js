@@ -748,4 +748,67 @@
     if (m) { $(this).find('input[name="csrfmiddlewaretoken"]').val(m[1]); }
   });
 
+  // ---- Device-bound ownership for shared accounts ------------------------
+  // One login may be shared by many people (a college account). Each
+  // browser keeps a random secret token; places created here carry it in a
+  // private field, and the server refuses edits/deletes on a device-bound
+  // place unless the same token comes back. deviceRules decides when the
+  // Delete button is even offered; the server is the real lock.
+  KK.deviceToken = (function() {
+    try {
+      var token = window.localStorage.getItem('kkDeviceToken');
+      if (!token) {
+        var bytes = new Uint8Array(20);
+        window.crypto.getRandomValues(bytes);
+        token = Array.prototype.map.call(bytes, function(b) {
+          return ('0' + b.toString(16)).slice(-2);
+        }).join('');
+        window.localStorage.setItem('kkDeviceToken', token);
+      }
+      return token;
+    } catch (e) { return null; }
+  })();
+
+  KK.deviceRules = {
+    // Device-bound place: only the creating device may delete (and the
+    // account must still match). Unbound place: the pre-existing
+    // account-or-legacy-token rules apply unchanged.
+    canDelete: function(deviceBound, ownedByAccount, isMine, ownedByToken) {
+      if (deviceBound) { return !!(ownedByAccount && isMine); }
+      return !!(ownedByAccount || ownedByToken);
+    },
+    // "Yours" highlight follows the same device rule as Delete — mirrors
+    // S.Util.isMyPlace so the map never marks a place this device can't
+    // manage.
+    isMine: function(deviceBound, inMyList, legacyTokenMatch) {
+      if (deviceBound) { return !!inMyList; }
+      return !!(legacyTokenMatch || inMyList);
+    }
+  };
+
+  if (KK.deviceToken) {
+    // Send the token on every same-origin API call so the proxy can pass
+    // it through to the API for PUT/PATCH/DELETE verification.
+    $(document).ajaxSend(function(evt, xhr, settings) {
+      var url = (settings && settings.url) || '';
+      if (url.indexOf('/api') === 0) {
+        xhr.setRequestHeader('X-Shareabouts-Device-Token', KK.deviceToken);
+      }
+    });
+
+    // Stamp new places with this device's token (private field — the API
+    // never exposes private-* data publicly) and a public device_bound
+    // marker so the detail view knows the strict rule applies.
+    var S = window.Shareabouts;
+    if (S && S.PlaceFormView) {
+      var kkOrigGetAttrs = S.PlaceFormView.prototype.getAttrs;
+      S.PlaceFormView.prototype.getAttrs = function() {
+        var attrs = kkOrigGetAttrs.apply(this, arguments);
+        attrs['private-device_token'] = KK.deviceToken;
+        attrs['device_bound'] = true;
+        return attrs;
+      };
+    }
+  }
+
 })(jQuery);

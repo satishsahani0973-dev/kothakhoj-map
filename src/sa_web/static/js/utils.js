@@ -87,10 +87,15 @@ var Shareabouts = Shareabouts || {};
       }
     },
     isMyPlace: function(model, userToken) {
+      var id = model.id || (model.get && model.get('id'));
+      var inMyList = id != null && S.Util.getMyPlaceIds().indexOf(id) !== -1;
+      // Device-bound places (shared accounts) are "mine" only on the
+      // device that created them — the same rule as the Delete button, so
+      // "Yours" never appears on a place this device can't manage.
+      if (model.get && model.get('device_bound')) { return inMyList; }
       var placeToken = model.get && model.get('user_token');
       if (userToken && placeToken && placeToken === userToken) { return true; }
-      var id = model.id || (model.get && model.get('id'));
-      return id != null && S.Util.getMyPlaceIds().indexOf(id) !== -1;
+      return inMyList;
     },
 
     getStickyFields: function(userToken) {
