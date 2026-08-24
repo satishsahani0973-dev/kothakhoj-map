@@ -2,6 +2,7 @@ import dateutil.parser
 import ujson as json
 import logging
 import os
+import posixpath
 import re
 import requests
 import time
@@ -202,11 +203,48 @@ def index(request, place_id=None):
     return api.respond_with_session_cookie(render(request, 'index.html', context))
 
 
+def normalized_api_path(path):
+    """
+    One canonical spelling of a proxied API path.
+
+    'places', '/places', '//places', './places' and 'places/../places' all
+    end up at the same API endpoint, because make_resource_uri() strips
+    leading slashes and the API's router resolves the rest. Any routing or
+    permission decision here therefore has to be made on the normalized
+    form, or it can be stepped around with an extra slash.
+    """
+    return posixpath.normpath('/' + path.lstrip('/')).lstrip('/')
+
+
+# The API serves place creation from the collection endpoint, which also
+# accepts a comma-separated id list ('places/1,2') and still creates on
+# POST, so both spellings have to be recognised as "add a place".
+PLACE_COLLECTION_RE = re.compile(r'^places(?:/(?:\d+,)+\d+)?$')
+
+
+def has_signed_in_session(request):
+    """
+    Whether this request carries a session belonging to a real account.
+
+    The 'sa-api-sessionid' cookie is supplied by the client, so its mere
+    presence proves nothing — anyone can invent a value. Only the API can
+    say whether the session maps to a user, so ask it.
+    """
+    if not request.COOKIES.get('sa-api-sessionid'):
+        return False
+    try:
+        api = ShareaboutsApi(get_shareabouts_config(), request)
+        user = api.current_user()
+    except Exception:
+        log.exception('Could not verify the API session while adding a place')
+        return False
+    return bool(user and user.get('username'))
+
+
 def place_was_created(request, path, response):
-    path = path.strip('/')
+    path = normalized_api_path(path)
     return (
-        path.startswith('places') and
-        not path.startswith('places/') and
+        PLACE_COLLECTION_RE.match(path) is not None and
         response.status_code == 201)
 
 
@@ -469,13 +507,18 @@ def api(request, path):
     api_key = settings.SHAREABOUTS.get('DATASET_KEY')
     api_session_cookie = request.COOKIES.get('sa-api-sessionid')
 
+    # Every routing decision below is made on the normalized path: the raw
+    # one can be spelled several ways ('//places', './places') that all
+    # reach the same endpoint upstream.
+    norm_path = normalized_api_path(path)
+
     # Only signed-in posters may add a room. The map hides "Add a Place" from
     # visitors, but this proxy attaches the dataset key to every request it
     # forwards, and that key alone satisfies the API's create permission — so
     # without this check anyone could POST a place straight to /api/places.
     # Comments and support stay open to anonymous students by design.
-    if request.method == 'POST' and re.match(r'^places/?$', path):
-        if not api_session_cookie:
+    if request.method == 'POST' and PLACE_COLLECTION_RE.match(norm_path):
+        if not has_signed_in_session(request):
             return HttpResponse('Sign in to add a place', status=403)
 
     # Server-side ownership check for deletes. Signed-in posters own their
@@ -483,10 +526,11 @@ def api(request, path):
     # let the API decide (it now enforces submitter ownership), so a poster
     # can delete their own place from any device. For anonymous callers with
     # no API session, keep the legacy browser-token check.
-    place_match = re.match(r'^places/(\d+)/?$', path)
+    place_match = re.match(r'^places/(\d+)$', norm_path)
     if request.method == 'DELETE' and place_match:
-        has_api_session = bool(request.COOKIES.get('sa-api-sessionid'))
-        if not has_api_session:
+        # A cookie the caller invented is not a session: verify it, or fall
+        # through to the legacy token check rather than waving the request on.
+        if not has_signed_in_session(request):
             session_token = request.session.get('user_token')
             owner_token = None
             try:

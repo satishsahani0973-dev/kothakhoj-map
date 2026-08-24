@@ -179,9 +179,38 @@ class APIServerBackend (SimpleTestCase):
     # The proxy attaches the dataset key to everything it forwards, and that
     # key alone satisfies the API's create permission — so the sign-in check
     # has to happen here, not only by hiding the button in the browser.
+    # Every spelling below reaches the same create endpoint upstream, so the
+    # guard has to recognise all of them — an extra slash or a pk-list suffix
+    # used to walk straight past it.
+    # ('//api/places' is not here: it never reaches this proxy — Django
+    #  routes it to the map's index view, so no place can be created.)
+    CREATE_PATH_SPELLINGS = (
+        '/api/places',
+        '/api/places/',
+        '/api//places',
+        '/api///places',
+        '/api/./places',
+        '/api/places/../places',
+        '/api/places/1,2',
+        '/api/places/12,34,56',
+    )
+
     def test_anonymous_cannot_create_a_place(self):
         with start_stub_api_server(DATA_FIXTURES_DIR / 'test_fixtures'):
             client = Client()
+            for path in self.CREATE_PATH_SPELLINGS:
+                with self.subTest(path=path):
+                    response = client.post(path, data='{}',
+                                           content_type='application/json')
+                    self.assertEqual(response.status_code, 403)
+
+    def test_invented_session_cookie_cannot_create_a_place(self):
+        # The cookie is client-supplied; only the API can say whether it
+        # belongs to an account. The stub API answers /users/current with
+        # 'null', i.e. nobody is signed in.
+        with start_stub_api_server(DATA_FIXTURES_DIR / 'test_fixtures'):
+            client = Client()
+            client.cookies['sa-api-sessionid'] = 'invented-by-the-caller'
             response = client.post('/api/places', data='{}',
                                    content_type='application/json')
             self.assertEqual(response.status_code, 403)
@@ -189,17 +218,31 @@ class APIServerBackend (SimpleTestCase):
     def test_signed_in_poster_may_create_a_place(self):
         with start_stub_api_server(DATA_FIXTURES_DIR / 'test_fixtures'):
             client = Client()
-            client.cookies['sa-api-sessionid'] = 'a-logged-in-session'
-            response = client.post('/api/places', data='{}',
-                                   content_type='application/json')
+            client.cookies['sa-api-sessionid'] = 'a-real-session'
+            with mock.patch('sa_web.views.has_signed_in_session',
+                            return_value=True):
+                response = client.post('/api/places', data='{}',
+                                       content_type='application/json')
             self.assertNotEqual(response.status_code, 403)
 
     def test_anonymous_may_still_comment(self):
         with start_stub_api_server(DATA_FIXTURES_DIR / 'test_fixtures'):
             client = Client()
-            response = client.post('/api/places/1/comments', data='{}',
-                                   content_type='application/json')
-            self.assertNotEqual(response.status_code, 403)
+            for path in ('/api/places/1/comments', '/api/places/1/support'):
+                with self.subTest(path=path):
+                    response = client.post(path, data='{}',
+                                           content_type='application/json')
+                    self.assertNotEqual(response.status_code, 403)
+
+    def test_normalized_api_path_collapses_equivalent_spellings(self):
+        from sa_web.views import normalized_api_path
+        for raw in ('places', '/places', '//places', './places',
+                    'places/../places'):
+            with self.subTest(raw=raw):
+                self.assertEqual(normalized_api_path(raw), 'places')
+        self.assertEqual(normalized_api_path('places/1,2'), 'places/1,2')
+        self.assertEqual(normalized_api_path('places/7/comments'),
+                         'places/7/comments')
 
 
 @override_settings(
