@@ -7,6 +7,7 @@ Replace this with more appropriate tests for your application.
 
 from contextlib import contextmanager
 from django.conf import settings
+from django.http import HttpResponse
 from django.test import Client, override_settings, SimpleTestCase
 from os.path import abspath, dirname, join as path_join
 from pathlib import Path
@@ -233,6 +234,16 @@ class APIServerBackend (SimpleTestCase):
                     response = client.post(path, data='{}',
                                            content_type='application/json')
                     self.assertNotEqual(response.status_code, 403)
+
+    def test_proxy_asks_the_api_for_uncompressed_content(self):
+        # proxy_view drops Content-Encoding when relaying, so a compressed
+        # upstream answer would reach the browser as unparseable bytes.
+        with start_stub_api_server(DATA_FIXTURES_DIR / 'test_fixtures'):
+            with mock.patch('sa_web.views.proxy_view') as mock_proxy:
+                mock_proxy.return_value = HttpResponse(b'{}')
+                Client().get('/api/places')
+            sent = mock_proxy.call_args.kwargs['requests_args']['headers']
+            self.assertEqual(sent.get('Accept-Encoding'), 'identity')
 
     def test_normalized_api_path_collapses_equivalent_spellings(self):
         from sa_web.views import normalized_api_path

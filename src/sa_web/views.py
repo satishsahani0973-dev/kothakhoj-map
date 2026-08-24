@@ -552,7 +552,17 @@ def api(request, path):
 
     url = make_resource_uri(path, root)
     headers = {'X-SHAREABOUTS-KEY': api_key,
-               'X-CSRFTOKEN': api_csrf_token}
+               'X-CSRFTOKEN': api_csrf_token,
+               # Always fetch the API's answer uncompressed. proxy_view drops
+               # Content-Encoding when it relays the response (it counts as a
+               # hop-by-hop header), so if the upstream replies with brotli or
+               # zstd — Cloudflare sits in front of api.kothakhoj.com and does
+               # exactly that — the browser is handed compressed bytes
+               # labelled "application/json" and every API call fails to
+               # parse. requests only auto-decodes gzip/deflate, so asking for
+               # identity is the reliable choice. Our own GzipMiddleware still
+               # compresses the reply on the way out to the browser.
+               'Accept-Encoding': 'identity'}
     # Pass the browser's device token through so the API can verify
     # device-bound ownership on shared accounts.
     device_token = request.META.get('HTTP_X_SHAREABOUTS_DEVICE_TOKEN')
