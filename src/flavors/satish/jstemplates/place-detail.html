@@ -58,12 +58,13 @@
             <img src="{{ file }}" class="place-value place-value-{{ name }}" alt="{{ name }}">
           </div>
           {{/ attachments }}
-          {{#each_place_item "submitter_name" "name" "location_type" "stay_duration"}}
+          {{#each_place_item "submitter_name" "name" "location_type" "stay_duration" "contact_number" "contact_role"}}
           <div class="place-item place-item-{{ name }}">
             <span class="place-label place-label-{{ name }}">{{ label }}</span>
             <p class="place-value place-value-{{ name }}">{{nlToBr value }}</p>
           </div>
           {{/each_place_item }}
+          {{ contact_block contact_number contact_role }}
         </section>
 
         {{#if survey_config}}

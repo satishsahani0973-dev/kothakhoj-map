@@ -89,6 +89,38 @@
     }
   };
 
+  // ---- Owner contact ------------------------------------------------------
+  // The form records whose number was given (Owner / Other person); the
+  // detail page then names who the caller reaches and offers a WhatsApp
+  // shortcut. Places saved before this feature carry no role, so they keep
+  // a neutral "Contact" label — same information as before.
+  KK.contact = {
+    esc: function(s) {
+      return String(s).replace(/[&<>"']/g, function(c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    },
+    roleLabel: function(role) {
+      if (role === 'owner') { return 'Owner'; }
+      if (role === 'other') { return 'Contact person'; }
+      return 'Contact';
+    },
+    blockHtml: function(number, role) {
+      var num = String(number == null ? '' : number).trim();
+      if (!num) { return ''; }
+      var label = KK.contact.roleLabel(role);
+      var wa = KK.route.waLink(num);
+      var html = '<div class="place-item kk-contact">' +
+        '<span class="place-label">' + label + '</span>' +
+        '<p class="place-value kk-contact-number">' + KK.contact.esc(num) + '</p>';
+      if (wa) {
+        html += '<a class="btn kk-wa-btn" target="_blank" rel="noopener" href="' + wa +
+                '">WhatsApp the ' + label.toLowerCase() + '</a>';
+      }
+      return html + '</div>';
+    }
+  };
+
   if (window.Handlebars) {
     window.Handlebars.registerHelper('free_badge', function(free_ts) {
       var a = KK.availability(free_ts);
@@ -96,6 +128,9 @@
         '<span class="free-badge free-badge-now">Available now</span>' :
         '<span class="free-badge free-badge-later">Not available — free from ' + a.label + '</span>';
       return new window.Handlebars.SafeString(html);
+    });
+    window.Handlebars.registerHelper('contact_block', function(number, role) {
+      return new window.Handlebars.SafeString(KK.contact.blockHtml(number, role));
     });
   }
 
@@ -636,6 +671,31 @@
         var colleges = KK.colleges.parseCsv(text);
         if (colleges.length) { addCollegeLayer(map, colleges); }
       });
+    }, 0);
+  });
+
+  // ---- Availability legend ------------------------------------------------
+  // Small stacked card at the bottom-left of the map telling first-time
+  // visitors what the pin colors mean. Wording mirrors the detail badge
+  // ("Available" / "Not available"); dot colors match the config.yml
+  // marker icons.
+  KK.legend = {
+    html: function() {
+      return '<div class="kk-legend">' +
+        '<div class="kk-legend-row"><span class="kk-legend-dot kk-legend-dot-free"></span>Available</div>' +
+        '<div class="kk-legend-row"><span class="kk-legend-dot kk-legend-dot-taken"></span>Not available</div>' +
+        '</div>';
+    }
+  };
+
+  $(function() {
+    // Same one-tick wait as the college layer: the map exists only after
+    // the app's own ready handler has run.
+    setTimeout(function() {
+      var app = window.app;
+      var map = app && app.appView && app.appView.mapView && app.appView.mapView.map;
+      if (!map) { return; }
+      $(map.getContainer()).append(KK.legend.html());
     }, 0);
   });
 

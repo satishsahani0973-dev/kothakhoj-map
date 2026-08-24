@@ -270,5 +270,81 @@ check('yours rules: unbound keeps legacy token match', () =>
 check('yours rules: unbound with my-list match', () =>
   assert.strictEqual(KK.deviceRules.isMine(false, true, false), true));
 
+// ---- availability legend ----
+console.log('legend');
+check('legend html has both stacked rows with matching dots', () => {
+  const html = KK.legend.html();
+  assert.ok(html.includes('Available'), 'green label');
+  assert.ok(html.includes('Not available'), 'orange label');
+  assert.ok(html.includes('kk-legend-dot-free'), 'green dot class');
+  assert.ok(html.includes('kk-legend-dot-taken'), 'orange dot class');
+});
+check('legend never uses the rejected word Occupied', () =>
+  assert.ok(KK.legend.html().indexOf('Occupied') === -1));
+check('legend wording matches the detail badge family', () => {
+  const badge = String(Handlebars.helpers.free_badge(undefined));
+  assert.ok(badge.includes('Available'), 'badge and legend share wording');
+});
+
+// ---- owner contact ----
+console.log('contact');
+check('role labels: owner / other / legacy', () => {
+  assert.strictEqual(KK.contact.roleLabel('owner'), 'Owner');
+  assert.strictEqual(KK.contact.roleLabel('other'), 'Contact person');
+  assert.strictEqual(KK.contact.roleLabel(undefined), 'Contact');
+  assert.strictEqual(KK.contact.roleLabel(''), 'Contact');
+});
+check('block: owner number -> label, number, wa link, button text', () => {
+  const html = KK.contact.blockHtml('9812345678', 'owner');
+  assert.ok(html.includes('>Owner<'), 'label');
+  assert.ok(html.includes('9812345678'), 'number shown');
+  assert.ok(html.includes('https://wa.me/9779812345678'), 'wa link');
+  assert.ok(html.includes('WhatsApp the owner'), 'button text');
+});
+check('block: other person -> Contact person wording', () => {
+  const html = KK.contact.blockHtml('9812345678', 'other');
+  assert.ok(html.includes('Contact person'));
+  assert.ok(html.includes('WhatsApp the contact person'));
+});
+check('block: legacy place without role -> neutral Contact', () => {
+  const html = KK.contact.blockHtml('9812345678', undefined);
+  assert.ok(html.includes('>Contact<'));
+});
+check('block: no number -> renders nothing', () => {
+  assert.strictEqual(KK.contact.blockHtml('', 'owner'), '');
+  assert.strictEqual(KK.contact.blockHtml(null, 'owner'), '');
+  assert.strictEqual(KK.contact.blockHtml('   ', 'owner'), '');
+});
+check('block: too-short number -> shown but no wa button', () => {
+  const html = KK.contact.blockHtml('12345', 'owner');
+  assert.ok(html.includes('12345'));
+  assert.ok(!html.includes('wa.me'));
+});
+check('block escapes html in the stored number', () => {
+  const html = KK.contact.blockHtml('<img src=x>', 'owner');
+  assert.ok(!html.includes('<img'), 'markup neutralized');
+});
+check('contact_block helper wraps blockHtml as SafeString', () => {
+  const out = Handlebars.helpers.contact_block('9812345678', 'owner');
+  assert.ok(String(out).includes('kk-contact'));
+});
+
+// ---- config + template wiring ----
+console.log('config/template wiring');
+check("config: contact field relabeled to Owner's Contact Number", () =>
+  assert.ok(configText.includes("_(Owner's Contact Number)")));
+check('config: contact_role select exists with Owner listed first', () => {
+  assert.ok(configText.includes('name: contact_role'), 'field present');
+  const roleBlock = configText.split('Whose number is this?').pop().split('name: contact_role')[0];
+  assert.ok(roleBlock.indexOf('value: owner') !== -1 &&
+            roleBlock.indexOf('value: owner') < roleBlock.indexOf('value: other'),
+            'Owner is the default first option');
+});
+const detailTpl = fs.readFileSync(path.join(FLAVOR, 'jstemplates/place-detail.html'), 'utf8');
+check('detail template: generic loop excludes both contact fields', () =>
+  assert.ok(detailTpl.includes('"contact_number" "contact_role"')));
+check('detail template: renders the contact block', () =>
+  assert.ok(detailTpl.includes('contact_block contact_number contact_role')));
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

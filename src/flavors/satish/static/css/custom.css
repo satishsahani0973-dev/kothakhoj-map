@@ -670,3 +670,57 @@ body.signin-gate #list-container {
   background: #1558b0;
   color: #fff;
 }
+
+/* Availability legend — stacked card, bottom-left of the map, above the
+   attribution line. pointer-events off so the map stays draggable. */
+.kk-legend {
+  position: absolute;
+  left: 10px;
+  bottom: 34px;
+  z-index: 1100;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: bold;
+  color: #333;
+  line-height: 1.7;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+}
+.kk-legend-row { white-space: nowrap; }
+.kk-legend-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+.kk-legend-dot-free { background: #4bbd45; }
+.kk-legend-dot-taken { background: #f95016; }
+/* Phone browse screen: the floating Add-a-place pill / welcome text lives
+   at the same corner (bottom 3.2em) — lift the legend above it. */
+@media only screen and (max-width: 59.9375em) {
+  body:not(.content-visible) .kk-legend { bottom: 8.5em; }
+}
+
+/* Owner contact block on the place detail page */
+.kk-contact .kk-contact-number {
+  font-size: 16px;
+  font-weight: bold;
+}
+.kk-wa-btn,
+#content a.kk-wa-btn {
+  display: inline-block;
+  background: #25d366;
+  color: #fff;
+  border: none;
+}
+.kk-wa-btn:hover,
+.kk-wa-btn:focus,
+#content a.kk-wa-btn:hover,
+#content a.kk-wa-btn:focus {
+  background: #1ebe5d;
+  color: #fff;
+}
