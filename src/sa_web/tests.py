@@ -176,6 +176,31 @@ class APIServerBackend (SimpleTestCase):
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.content, places_data)
 
+    # The proxy attaches the dataset key to everything it forwards, and that
+    # key alone satisfies the API's create permission — so the sign-in check
+    # has to happen here, not only by hiding the button in the browser.
+    def test_anonymous_cannot_create_a_place(self):
+        with start_stub_api_server(DATA_FIXTURES_DIR / 'test_fixtures'):
+            client = Client()
+            response = client.post('/api/places', data='{}',
+                                   content_type='application/json')
+            self.assertEqual(response.status_code, 403)
+
+    def test_signed_in_poster_may_create_a_place(self):
+        with start_stub_api_server(DATA_FIXTURES_DIR / 'test_fixtures'):
+            client = Client()
+            client.cookies['sa-api-sessionid'] = 'a-logged-in-session'
+            response = client.post('/api/places', data='{}',
+                                   content_type='application/json')
+            self.assertNotEqual(response.status_code, 403)
+
+    def test_anonymous_may_still_comment(self):
+        with start_stub_api_server(DATA_FIXTURES_DIR / 'test_fixtures'):
+            client = Client()
+            response = client.post('/api/places/1/comments', data='{}',
+                                   content_type='application/json')
+            self.assertNotEqual(response.status_code, 403)
+
 
 @override_settings(
     EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',

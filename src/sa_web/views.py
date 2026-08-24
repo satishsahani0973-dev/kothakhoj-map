@@ -469,6 +469,15 @@ def api(request, path):
     api_key = settings.SHAREABOUTS.get('DATASET_KEY')
     api_session_cookie = request.COOKIES.get('sa-api-sessionid')
 
+    # Only signed-in posters may add a room. The map hides "Add a Place" from
+    # visitors, but this proxy attaches the dataset key to every request it
+    # forwards, and that key alone satisfies the API's create permission — so
+    # without this check anyone could POST a place straight to /api/places.
+    # Comments and support stay open to anonymous students by design.
+    if request.method == 'POST' and re.match(r'^places/?$', path):
+        if not api_session_cookie:
+            return HttpResponse('Sign in to add a place', status=403)
+
     # Server-side ownership check for deletes. Signed-in posters own their
     # places by ACCOUNT: when the request carries a logged-in API session,
     # let the API decide (it now enforces submitter ownership), so a poster
