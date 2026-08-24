@@ -704,6 +704,9 @@ body.signin-gate #list-container {
 @media only screen and (max-width: 59.9375em) {
   body:not(.content-visible) .kk-legend { bottom: 8.5em; }
 }
+/* While navigating, the turn card owns the bottom of the screen — the pin
+   legend would sit on top of the instruction text. */
+body.kk-routing .kk-legend { display: none; }
 
 /* Owner contact block on the place detail page */
 .kk-contact .kk-contact-number {

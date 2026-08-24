@@ -450,6 +450,46 @@ var Shareabouts = Shareabouts || {};
       var started = false;
       var arrived = false;
       var lastRouteTime = 0;
+      // Turn-by-turn: the steps Mapbox sends with the route, the shape of
+      // the route itself (to work out how far along the walker is), and the
+      // turn currently being shown on the card.
+      var instructions = null;
+      var routeCoords = null;
+      var nextStep = null;
+      var nextStepLead = '';
+
+      // Street names come from the map data, so escape before they go into
+      // the card's HTML.
+      var esc = function(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
+          return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+      };
+
+      // How far along the route the walker is, as an index into the route's
+      // coordinates: the nearest point on the drawn line.
+      var positionIndex = function(latlng) {
+        if (!routeCoords || !routeCoords.length) { return 0; }
+        var best = 0, bestDist = Infinity;
+        for (var i = 0; i < routeCoords.length; i++) {
+          var d = latlng.distanceTo(routeCoords[i]);
+          if (d < bestDist) { bestDist = d; best = i; }
+        }
+        return best;
+      };
+
+      // Recompute the turn to show, and how far away it is.
+      var updateStep = function(latlng) {
+        if (!KKR || !instructions || !latlng) { return; }
+        var idx = positionIndex(latlng);
+        var step = KKR.nextInstruction(instructions, idx);
+        if (!step) { nextStep = null; return; }
+        nextStep = step;
+        var target = routeCoords && routeCoords[step.index];
+        nextStepLead = target ?
+          KKR.fmtStepDistance(latlng.distanceTo(target)) : '';
+      };
+
       var MODES = [
         { key: 'walking', label: 'Walk' },
         { key: 'cycling', label: 'Cycle' },
@@ -494,9 +534,15 @@ var Shareabouts = Shareabouts || {};
               ' background:' + (on ? '#007fbf' : '#fff') + ';' +
               ' color:' + (on ? '#fff' : '#444') + ';">' + m.label + '</a>';
           });
+          // Show the opening move before they set off, so they know which
+          // way to turn out of the gate.
+          var firstStep = (instructions && instructions.length) ?
+            '<div style="font-size:13px; color:#444; margin:5px 0 0;">' +
+              'First: ' + esc(instructions[0].text) + '</div>' : '';
           html =
             '<div style="font-size:22px; font-weight:bold;">' + big +
               ' <span style="font-size:13px; color:#888; font-weight:normal;">' + small + '</span></div>' +
+            firstStep +
             '<div style="display:flex; gap:7px; margin:9px 0 11px;">' + chips + '</div>' +
             '<div style="display:flex; gap:8px;">' +
               '<a href="#" class="kk-rc-start" style="flex:2.2; background:#2e9e44; color:#fff;' +
@@ -506,10 +552,18 @@ var Shareabouts = Shareabouts || {};
                 ' border-radius:9px; text-align:center; padding:9px 0; text-decoration:none;">Cancel</a>' +
             '</div>';
         } else if (state === 'nav') {
+          // The turn is the loudest thing on the card while walking; the
+          // distance/time left sits underneath it.
+          var turn = nextStep ?
+            '<div style="font-size:19px; font-weight:bold; line-height:1.25; color:#123;">' +
+              esc(nextStep.text) + '</div>' +
+            '<div style="font-size:13px; color:#2e7d32; font-weight:bold; margin:2px 0 7px;">' +
+              esc(nextStepLead) + '</div>' :
+            '<div style="font-size:12px; color:#2e7d32; margin:4px 0 9px;">You are on the way</div>';
           html =
-            '<div style="font-size:22px; font-weight:bold;">' + big +
-              ' <span style="font-size:13px; color:#888; font-weight:normal;">' + small + ' left</span></div>' +
-            '<div style="font-size:12px; color:#2e7d32; margin:4px 0 9px;">You are on the way</div>' +
+            turn +
+            '<div style="font-size:13px; color:#666; margin:0 0 9px;">' + big +
+              ' <span style="color:#888;">' + small + ' left</span></div>' +
             '<a href="#" class="kk-rc-stop" style="display:block; border:1px solid #e5b8b2; color:#c0392b;' +
               ' border-radius:9px; text-align:center; padding:8px 0; font-weight:bold;' +
               ' text-decoration:none;">Stop</a>';
@@ -613,10 +667,17 @@ var Shareabouts = Shareabouts || {};
               self.map.fitBounds(L.latLngBounds([lastRouted, destLatLng]).pad(0.25));
             }
           }
+          if (route) {
+            // Keep the turn list and the line's shape: together they tell
+            // us which turn is next as the walker moves.
+            instructions = route.instructions || null;
+            routeCoords = route.coordinates || null;
+            updateStep(lastRouted);
+          }
           if (route && route.summary) {
             lastSummary = route.summary;
-            render();
           }
+          if (route) { render(); }
         });
 
         self.routingControl.on('routingerror', function() {
@@ -664,6 +725,13 @@ var Shareabouts = Shareabouts || {};
             }
             return;
           }
+
+          // The turn on the card follows every GPS fix, even when we do not
+          // ask Mapbox for a new route — that is what makes it feel live.
+          var prevStep = nextStep;
+          var prevLead = nextStepLead;
+          updateStep(now);
+          if (nextStep !== prevStep || nextStepLead !== prevLead) { render(); }
 
           // Only re-route after moving ~15 meters, at most every 10 seconds.
           if (now.distanceTo(lastRouted) < 15 ||

@@ -79,6 +79,26 @@
 
     isArrived: function(metersToDest) { return metersToDest <= 30; },
 
+    // Which turn comes next. Each instruction carries the index of the
+    // route coordinate where its maneuver happens, so the next turn is the
+    // first one still ahead of where the walker currently is. Past the last
+    // maneuver we keep showing it (it is the "arrive" step).
+    nextInstruction: function(instructions, positionIndex) {
+      if (!instructions || !instructions.length) { return null; }
+      for (var i = 0; i < instructions.length; i++) {
+        if (instructions[i].index >= positionIndex) { return instructions[i]; }
+      }
+      return instructions[instructions.length - 1];
+    },
+
+    // The lead-in under a turn: "now" when it is on top of you, otherwise
+    // a rounded distance a walker can judge by eye.
+    fmtStepDistance: function(meters) {
+      if (!isFinite(meters) || meters < 20) { return 'now'; }
+      if (meters < 950) { return 'in ' + (Math.round(meters / 10) * 10) + ' m'; }
+      return 'in ' + (meters / 1000).toFixed(1) + ' km';
+    },
+
     // "9812345678" / "09812345678" / "+977 981-2345678" -> a wa.me link;
     // null when there aren't enough digits to be a phone number.
     waLink: function(contact) {

@@ -270,6 +270,35 @@ check('yours rules: unbound keeps legacy token match', () =>
 check('yours rules: unbound with my-list match', () =>
   assert.strictEqual(KK.deviceRules.isMine(false, true, false), true));
 
+// ---- turn-by-turn instructions ----
+console.log('route.nextInstruction / fmtStepDistance');
+const STEPS = [
+  { text: 'Walk east on Buddha Path', index: 0 },
+  { text: 'Turn left onto Purano Sadak', index: 4 },
+  { text: 'Turn right onto Devdaha Marg', index: 9 },
+  { text: 'You have arrived', index: 14 },
+];
+check('at the start -> the first turn', () =>
+  assert.strictEqual(KK.route.nextInstruction(STEPS, 0).text, 'Walk east on Buddha Path'));
+check('mid-route -> the turn still ahead, not the one passed', () =>
+  assert.strictEqual(KK.route.nextInstruction(STEPS, 5).text, 'Turn right onto Devdaha Marg'));
+check('exactly on a maneuver -> that maneuver', () =>
+  assert.strictEqual(KK.route.nextInstruction(STEPS, 4).text, 'Turn left onto Purano Sadak'));
+check('past the last maneuver -> keeps the arrival step', () =>
+  assert.strictEqual(KK.route.nextInstruction(STEPS, 99).text, 'You have arrived'));
+check('no instructions -> null (card falls back to the old wording)', () => {
+  assert.strictEqual(KK.route.nextInstruction([], 0), null);
+  assert.strictEqual(KK.route.nextInstruction(null, 0), null);
+});
+check('step distance: on top of the turn reads "now"', () =>
+  assert.strictEqual(KK.route.fmtStepDistance(12), 'now'));
+check('step distance: metres are rounded to a judgeable 10', () =>
+  assert.strictEqual(KK.route.fmtStepDistance(147), 'in 150 m'));
+check('step distance: long legs switch to km', () =>
+  assert.strictEqual(KK.route.fmtStepDistance(2400), 'in 2.4 km'));
+check('step distance: rubbish input does not print NaN', () =>
+  assert.strictEqual(KK.route.fmtStepDistance(NaN), 'now'));
+
 // ---- availability legend ----
 console.log('legend');
 check('legend html has both stacked rows with matching dots', () => {
@@ -281,6 +310,10 @@ check('legend html has both stacked rows with matching dots', () => {
 });
 check('legend never uses the rejected word Occupied', () =>
   assert.ok(KK.legend.html().indexOf('Occupied') === -1));
+check('legend hides while navigating so it cannot cover the turn card', () => {
+  const css = fs.readFileSync(path.join(FLAVOR, 'static/css/custom.css'), 'utf8');
+  assert.ok(/body\.kk-routing\s+\.kk-legend\s*\{[^}]*display:\s*none/.test(css));
+});
 check('legend wording matches the detail badge family', () => {
   const badge = String(Handlebars.helpers.free_badge(undefined));
   assert.ok(badge.includes('Available'), 'badge and legend share wording');
