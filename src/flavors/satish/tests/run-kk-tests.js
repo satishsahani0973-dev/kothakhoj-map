@@ -310,9 +310,33 @@ check('legend html has both stacked rows with matching dots', () => {
 });
 check('legend never uses the rejected word Occupied', () =>
   assert.ok(KK.legend.html().indexOf('Occupied') === -1));
-check('legend hides while navigating so it cannot cover the turn card', () => {
+check('legend hides for the WHOLE directions flow, not just while walking', () => {
   const css = fs.readFileSync(path.join(FLAVOR, 'static/css/custom.css'), 'utf8');
-  assert.ok(/body\.kk-routing\s+\.kk-legend\s*\{[^}]*display:\s*none/.test(css));
+  // kk-directions is set the moment Directions is tapped; kk-routing only
+  // once Start is pressed — which left the preview card covered on phones.
+  assert.ok(/body\.kk-directions\s+\.kk-legend\s*\{[^}]*display:\s*none/.test(css),
+    'legend keyed off kk-directions');
+  assert.ok(!/body\.kk-routing\s+\.kk-legend\s*\{/.test(css),
+    'the old walking-only rule is gone');
+});
+check('welcome line / Add-a-place pill clear the route card too', () => {
+  const css = fs.readFileSync(path.join(FLAVOR, 'static/css/custom.css'), 'utf8');
+  assert.ok(/body\.kk-directions\s+#add-place-btn-container\s*\{[^}]*display:\s*none/.test(css));
+});
+check('activity strip stays white with readable dark text', () => {
+  const css = fs.readFileSync(path.join(FLAVOR, 'static/css/custom.css'), 'utf8');
+  assert.ok(/#ticker\s*\{[\s\S]{0,200}?background:\s*rgba\(255, 255, 255/.test(css),
+    'white strip kept');
+  assert.ok(/#ticker \.recent-points li[\s\S]{0,260}?color:\s*#333/.test(css),
+    'sentence is dark');
+  assert.ok(/#ticker \.recent-points li strong[\s\S]{0,120}?color:\s*#007fbf/.test(css),
+    'poster name in KothaKhoj blue');
+});
+check('directions class is added on start and cleared on stop', () => {
+  const mv = fs.readFileSync(
+    path.join(FLAVOR, '../../sa_web/static/js/views/map-view.js'), 'utf8');
+  assert.ok(/addClass\('kk-directions'\)/.test(mv), 'added');
+  assert.ok(/removeClass\('kk-directions'\)/.test(mv), 'cleared');
 });
 check('legend wording matches the detail badge family', () => {
   const badge = String(Handlebars.helpers.free_badge(undefined));

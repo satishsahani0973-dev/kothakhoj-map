@@ -374,8 +374,23 @@ body.signin-gate #list-container {
   body:not(.content-visible) #ticker img {
     display: none;
   }
-  body.kk-routing #ticker {
+  body.kk-routing #ticker,
+  body.kk-directions #ticker {
     display: none;
+  }
+  /* The strip stays white; the theme's own text colour was too faint to
+     read on it. Dark grey for the sentence, KothaKhoj blue for the name
+     so the eye lands on who posted. */
+  body:not(.content-visible) #ticker .recent-points li,
+  body:not(.content-visible) #ticker .recent-points li a,
+  body:not(.content-visible) #ticker .recent-points li span,
+  body:not(.content-visible) #ticker .recent-points li time {
+    color: #333;
+    text-shadow: none;
+  }
+  body:not(.content-visible) #ticker .recent-points li strong,
+  body:not(.content-visible) #ticker .recent-points li strong a {
+    color: #007fbf;
   }
   /* No activity yet -> no empty white strip (older browsers without :has
      simply show the empty strip, which is harmless) */
@@ -388,8 +403,13 @@ body.signin-gate #list-container {
      (map-view.js toggles body.kk-routing; the directions card floats on
      the map itself). */
   body.kk-routing #site-header,
-  body.kk-routing #geocode-address-bar,
-  body.kk-routing #add-place-btn-container {
+  body.kk-routing #geocode-address-bar {
+    display: none;
+  }
+  /* The welcome line and the Add-a-place pill sit exactly where the route
+     card opens, so they step aside for the WHOLE directions flow — from
+     the moment Directions is tapped, not only once walking starts. */
+  body.kk-directions #add-place-btn-container {
     display: none;
   }
   body.kk-routing #map-container {
@@ -704,9 +724,10 @@ body.signin-gate #list-container {
 @media only screen and (max-width: 59.9375em) {
   body:not(.content-visible) .kk-legend { bottom: 8.5em; }
 }
-/* While navigating, the turn card owns the bottom of the screen — the pin
-   legend would sit on top of the instruction text. */
-body.kk-routing .kk-legend { display: none; }
+/* The route card owns the bottom of the screen for the whole directions
+   flow — locating, route preview and walking alike — so the pin legend
+   gets out of the way as soon as Directions is tapped. */
+body.kk-directions .kk-legend { display: none; }
 
 /* Owner contact block on the place detail page */
 .kk-contact .kk-contact-number {

@@ -450,6 +450,11 @@ var Shareabouts = Shareabouts || {};
       var started = false;
       var arrived = false;
       var lastRouteTime = 0;
+      // The route card owns the bottom of the screen from the moment
+      // Directions is tapped — not just once walking starts — so whatever
+      // normally sits down there (the pin legend, the welcome line, the
+      // Add-a-place pill) has to step aside for the whole flow.
+      $('body').addClass('kk-directions');
       // Turn-by-turn: the steps Mapbox sends with the route, the shape of
       // the route itself (to work out how far along the walker is), and the
       // turn currently being shown on the card.
@@ -782,6 +787,7 @@ var Shareabouts = Shareabouts || {};
         try { this.routeWakeLock.release(); } catch (e) {}
         this.routeWakeLock = null;
       }
+      $('body').removeClass('kk-directions');
       if ($('body').hasClass('kk-routing')) {
         $('body').removeClass('kk-routing');
         if (this.map) { this.map.invalidateSize(); }
