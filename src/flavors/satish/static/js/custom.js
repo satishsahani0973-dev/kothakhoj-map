@@ -32,6 +32,15 @@
 
     rememberChoice: function() {
       try { window.localStorage.setItem(KK.gate.KEY, 'browsing'); } catch (e) {}
+    },
+
+    // Pure decision: may the blur be lifted? The gate dims and freezes the
+    // map while the sign-in panel is open, so the blur must never outlive
+    // the panel. It is only safe to lift once the panel has actually been
+    // seen and has since gone away — otherwise we would clear the blur in
+    // the instant between raising the gate and the panel rendering.
+    shouldRelease: function(gateOn, panelVisible, panelSeen) {
+      return !!(gateOn && panelSeen && !panelVisible);
     }
   };
 
@@ -169,6 +178,41 @@
         $('body').removeClass('signin-gate');
       }
     }, 0);
+  });
+
+  // The panel can also be dismissed without touching our buttons — Android's
+  // Back button and any route change close it — and until this watcher the
+  // blur stayed behind, leaving a map that looked fine but could not be
+  // panned, zoomed or tapped, with a reload just repeating the trap.
+  $(function() {
+    var panelSeen = false;
+    var release = function() {
+      var $body = $('body');
+      if (!KK.gate.shouldRelease($body.hasClass('signin-gate'),
+                                 $body.hasClass('content-visible'),
+                                 panelSeen)) { return; }
+      KK.gate.rememberChoice();
+      $body.removeClass('signin-gate');
+    };
+    var sync = function() {
+      if ($('body').hasClass('content-visible')) {
+        panelSeen = true;
+      } else {
+        // The camera must not outlive the panel either. Closing the sign-in
+        // panel with ✕, Back, or a route change used to leave the rear
+        // camera held and a decode loop running four times a second.
+        stopScanner(null);
+      }
+      release();
+    };
+    if (window.MutationObserver) {
+      new window.MutationObserver(sync).observe(document.body, {
+        attributes: true, attributeFilter: ['class']
+      });
+    }
+    // Belt and braces for browsers without MutationObserver, and for the
+    // Back button specifically.
+    $(window).on('popstate hashchange', function() { setTimeout(sync, 0); });
   });
 
   // Closing the gate panel in any way counts as "continue browsing":
@@ -426,6 +470,9 @@
       scannerStream.getTracks().forEach(function(track) { track.stop(); });
       scannerStream = null;
     }
+    // Callers that just want the camera off (a panel closing) need not know
+    // which panel it was.
+    if (!$panel || !$panel.length) { $panel = $('.signin-page'); }
     $panel.find('.signin-scanner').addClass('is-hidden');
     $panel.find('.signin-scan').removeClass('is-hidden');
   }
@@ -740,9 +787,22 @@
         return { freeFrom: '', freeTs: '', label: '', n: 0 };
       }
       n = KK.freeDate.clamp(kind, n);
-      var d = new Date((from || new Date()).getTime());
+      var src = new Date((from || new Date()).getTime());
+      var day = src.getDate();
+      var d = new Date(src.getTime());
+      // Move the month (or year) with the day parked on the 1st, then put
+      // the day back, capped to the length of the month we land in.
+      // Otherwise 31 Jan + 1 month rolls over into 3 March — February
+      // skipped entirely, and the picker's own "today + 1 month" sentence
+      // contradicting the date printed beside it.
+      d.setDate(1);
       if (kind === 'month') { d.setMonth(d.getMonth() + n); }
       else { d.setFullYear(d.getFullYear() + n); }
+      var lastDayOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+      d.setDate(Math.min(day, lastDayOfMonth));
+      // The room is free FROM that day, so the pin should turn green at the
+      // start of it — not at whatever hour the landlord happened to post.
+      d.setHours(0, 0, 0, 0);
       var pad = function(x) { return (x < 10 ? '0' : '') + x; };
       return {
         freeFrom: d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()),
@@ -877,15 +937,22 @@
     });
 
     // Stamp new places with this device's token (private field — the API
-    // never exposes private-* data publicly) and a public device_bound
-    // marker so the detail view knows the strict rule applies.
+    // never exposes private-* data publicly). The public device_bound marker
+    // is what makes the UI hide Delete on other devices, so it goes on ONLY
+    // for shared logins — the server applies the same rule (it checks
+    // User.is_shared_account). Marking every place bound made the map
+    // stricter than the server and cost ordinary landlords the Delete button
+    // on their own rooms whenever they signed in elsewhere or cleared their
+    // browser data.
     var S = window.Shareabouts;
+    var kkUser = S && S.bootstrapped && S.bootstrapped.currentUser;
+    var kkSharedAccount = !!(kkUser && kkUser.is_shared_account);
     if (S && S.PlaceFormView) {
       var kkOrigGetAttrs = S.PlaceFormView.prototype.getAttrs;
       S.PlaceFormView.prototype.getAttrs = function() {
         var attrs = kkOrigGetAttrs.apply(this, arguments);
         attrs['private-device_token'] = KK.deviceToken;
-        attrs['device_bound'] = true;
+        if (kkSharedAccount) { attrs['device_bound'] = true; }
         return attrs;
       };
     }

@@ -95,6 +95,10 @@ class ShareaboutsApi:
             sessioninfo = get_api_sessioninfo(request)
             print(f'Got sessioninfo: {sessioninfo}')
 
+        # True when the most recent call could not reach the API or came back
+        # with a non-200. Callers that cache results check this so a blip is
+        # never stored as a real answer.
+        self.last_call_failed = False
         self.config = config
         self.dataset_root = dataset_root
         self.auth_root = make_auth_root(dataset_root)
@@ -107,9 +111,17 @@ class ShareaboutsApi:
         try:
             res = self.session.get(uri, params=kwargs, timeout=API_TIMEOUT)
         except requests.RequestException:
+            self.last_call_failed = True
             return default
         self.update_session_cookie()
-        return (res.text if res.status_code == 200 else default)
+        if res.status_code != 200:
+            # "The API did not answer" and "the answer was empty" are very
+            # different things to a caller that caches the result — flag it
+            # so they can tell the two apart.
+            self.last_call_failed = True
+            return default
+        self.last_call_failed = False
+        return res.text
 
     def current_user(self, default=None, **kwargs):
         if not hasattr(self, '_cached_user'):
@@ -117,10 +129,16 @@ class ShareaboutsApi:
             try:
                 res = self.session.get(uri, timeout=API_TIMEOUT, **kwargs)
             except requests.RequestException:
+                # Do NOT remember this as an answer: a blip must not read as
+                # "nobody is signed in".
+                self.last_call_failed = True
                 return default
             self.update_session_cookie()
-
-            self._cache_user(res.json() if res.status_code == 200 else default)
+            if res.status_code != 200:
+                self.last_call_failed = True
+                return default
+            self.last_call_failed = False
+            self._cache_user(res.json())
         return self._cached_user
 
     def login(self, username, password, **kwargs):

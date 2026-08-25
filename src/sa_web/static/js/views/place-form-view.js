@@ -190,8 +190,31 @@ var Shareabouts = Shareabouts || {};
       S.Util.log('USER', 'new-place', 'successfully-add-place');
       router.navigate(newPlaceUrl, {trigger: true});
     },
-    onSaveError: function() {
+    onSaveError: function(model, response) {
       S.Util.log('USER', 'new-place', 'fail-to-add-place');
+      // A failed save used to be completely silent: the spinner stopped and
+      // nothing else happened, so a landlord who had typed out a whole room
+      // just saw the button do nothing. Say what went wrong, and keep every
+      // value they typed so they can fix it and press Save again.
+      var status = (response && response.status) || 0;
+      var expired = (status === 401 || status === 403);
+      var message = expired ?
+        'Your sign-in has expired. Sign in again, then press Save — nothing you typed has been lost.' :
+        'Could not save this room just now. Check your internet and press Save again — nothing you typed has been lost.';
+      var $form = this.$('#place-form');
+      if (!$form.length) { $form = this.$el; }
+      $form.find('.kk-save-error').remove();
+      var $msg = $('<p class="kk-save-error"></p>').text(message);
+      if (expired) {
+        $msg.append(' ').append(
+          $('<a href="/page/signin">Sign in</a>')
+        );
+      }
+      $msg.prependTo($form);
+      var el = $msg[0];
+      if (el && el.scrollIntoView) {
+        try { el.scrollIntoView({ block: 'center' }); } catch (e) { el.scrollIntoView(); }
+      }
     },
     onSaveComplete: function() {
       var $button = this.$('[name="save-place-btn"]'),
@@ -236,7 +259,7 @@ var Shareabouts = Shareabouts || {};
       // Save and redirect
       this.model.save(attrs, {
         success: () => { this.onSaveSuccess(model); },
-        error: () => { this.onSaveError(model); },
+        error: (m, response) => { this.onSaveError(model, response); },
         complete: () => { this.onSaveComplete(model); },
         wait: true
       });

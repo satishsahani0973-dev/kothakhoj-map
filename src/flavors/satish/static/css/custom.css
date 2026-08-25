@@ -729,6 +729,22 @@ body.signin-gate #list-container {
    gets out of the way as soon as Directions is tapped. */
 body.kk-directions .kk-legend { display: none; }
 
+/* Save failed on the add-a-room form — loud enough not to be missed, since
+   the alternative was the button appearing to do nothing at all. */
+.kk-save-error {
+  background: #fdecea;
+  border: 1px solid #e6b3ad;
+  border-radius: 8px;
+  color: #8a2f24;
+  font-weight: bold;
+  padding: 10px 12px;
+  margin: 0 0 14px;
+}
+.kk-save-error a {
+  color: #8a2f24;
+  text-decoration: underline;
+}
+
 /* Owner contact block on the place detail page */
 .kk-contact .kk-contact-number {
   font-size: 16px;

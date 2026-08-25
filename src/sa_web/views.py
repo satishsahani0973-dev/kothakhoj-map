@@ -117,6 +117,14 @@ def get_cached_api_user(request, api):
             and time.time() - cached.get('ts', 0) < API_USER_CACHE_SECONDS):
         return cached.get('user')
     user = api.current_user(default=None)
+    if getattr(api, 'last_call_failed', False):
+        # The API did not answer. Never write that down as "signed out", or a
+        # one-second blip logs a poster out of the UI for a full minute and
+        # takes the Delete button off their own rooms. Reuse the last known
+        # answer for this session instead.
+        if cached and cached.get('sid') == sessionid:
+            return cached.get('user')
+        return user
     request.session['api_user_cache'] = {
         'sid': sessionid, 'user': user, 'ts': time.time()}
     return user
@@ -660,13 +668,21 @@ def sitemap_xml(request):
         urls.append((base + '/page/' + slug, None))
 
     api = ShareaboutsApi(config, request)
+    places_ok = True
     for page_num in range(1, SITEMAP_MAX_PAGES + 1):
         page_text = api.get('places', page_size=500, page=page_num)
+        if getattr(api, 'last_call_failed', False):
+            # The API blinked. Do not let a room-less sitemap be mistaken for
+            # the truth and cached for half a day — Google would stop finding
+            # every room page we have.
+            places_ok = False
+            break
         if not page_text:
             break
         try:
             data = json.loads(page_text)
         except ValueError:
+            places_ok = False
             break
         features = data.get('features', [])
         for feature in features:
@@ -691,7 +707,17 @@ def sitemap_xml(request):
            '\n'.join(entries) +
            '\n</urlset>\n')
 
-    cache.set('sa-sitemap-xml', xml, SITEMAP_CACHE_SECONDS)
+    if places_ok:
+        cache.set('sa-sitemap-xml', xml, SITEMAP_CACHE_SECONDS)
+        # Keep a long-lived copy of the last good sitemap to fall back on.
+        cache.set('sa-sitemap-xml-last-good', xml, SITEMAP_CACHE_SECONDS * 14)
+    else:
+        last_good = cache.get('sa-sitemap-xml-last-good')
+        if last_good:
+            return HttpResponse(last_good, content_type='application/xml')
+        # Nothing better to serve: hand back what we have, but only briefly,
+        # so the next crawl retries instead of waiting twelve hours.
+        cache.set('sa-sitemap-xml', xml, 120)
     return HttpResponse(xml, content_type='application/xml')
 
 

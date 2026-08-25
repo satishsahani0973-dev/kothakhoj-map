@@ -270,6 +270,46 @@ check('yours rules: unbound keeps legacy token match', () =>
 check('yours rules: unbound with my-list match', () =>
   assert.strictEqual(KK.deviceRules.isMine(false, true, false), true));
 
+// ---- month-end dates (bug: 31 Jan + 1 month landed on 3 Mar) ----
+console.log('freeDate month-end clamping');
+check('31 Jan + 1 month -> 28 Feb, not 3 Mar', () =>
+  assert.strictEqual(KK.freeDate.compute('month', 1, new Date(2026, 0, 31)).freeFrom, '2026-02-28'));
+check('31 Aug + 1 month -> 30 Sep', () =>
+  assert.strictEqual(KK.freeDate.compute('month', 1, new Date(2026, 7, 31)).freeFrom, '2026-09-30'));
+check('31 May + 1 month -> 30 Jun', () =>
+  assert.strictEqual(KK.freeDate.compute('month', 1, new Date(2026, 4, 31)).freeFrom, '2026-06-30'));
+check('29 Feb + 1 year -> 28 Feb (non-leap)', () =>
+  assert.strictEqual(KK.freeDate.compute('year', 1, new Date(2028, 1, 29)).freeFrom, '2029-02-28'));
+check('ordinary dates are untouched', () => {
+  assert.strictEqual(KK.freeDate.compute('month', 1, new Date(2026, 0, 15)).freeFrom, '2026-02-15');
+  assert.strictEqual(KK.freeDate.compute('month', 4, new Date(2026, 0, 10)).freeFrom, '2026-05-10');
+  assert.strictEqual(KK.freeDate.compute('year', 2, new Date(2026, 5, 9)).freeFrom, '2028-06-09');
+});
+check('free date starts at midnight, so the pin greens all day', () => {
+  const r = KK.freeDate.compute('month', 1, new Date(2026, 7, 24, 21, 30));
+  const d = new Date(Number(r.freeTs));
+  assert.strictEqual(d.getHours(), 0);
+  assert.strictEqual(d.getMinutes(), 0);
+});
+check('a room is green on the morning of its free date', () => {
+  // Posted 9pm on 24 Aug, free in 1 month -> 24 Sep. At 8am on 24 Sep the
+  // badge must read available; before the fix it stayed orange until 9pm.
+  const r = KK.freeDate.compute('month', 1, new Date(2026, 7, 24, 21, 0));
+  const morningOfFreeDay = new Date(2026, 8, 24, 8, 0).getTime();
+  assert.strictEqual(KK.availability(r.freeTs, morningOfFreeDay).state, 'now');
+});
+
+// ---- sign-in gate release (bug: Back button left the map blurred) ----
+console.log('gate.shouldRelease');
+check('panel shown then gone -> lift the blur', () =>
+  assert.strictEqual(KK.gate.shouldRelease(true, false, true), true));
+check('panel still open -> keep the blur', () =>
+  assert.strictEqual(KK.gate.shouldRelease(true, true, true), false));
+check('gate raised but panel not rendered yet -> do NOT lift early', () =>
+  assert.strictEqual(KK.gate.shouldRelease(true, false, false), false));
+check('no gate -> nothing to do', () =>
+  assert.strictEqual(KK.gate.shouldRelease(false, false, true), false));
+
 // ---- turn-by-turn instructions ----
 console.log('route.nextInstruction / fmtStepDistance');
 const STEPS = [

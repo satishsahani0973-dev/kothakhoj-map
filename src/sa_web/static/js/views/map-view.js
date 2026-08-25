@@ -462,6 +462,9 @@ var Shareabouts = Shareabouts || {};
       var routeCoords = null;
       var nextStep = null;
       var nextStepLead = '';
+      // Set when the GPS stops answering mid-walk, so the card can say so
+      // rather than freezing on a stale turn.
+      var gpsLost = null;
 
       // Street names come from the map data, so escape before they go into
       // the card's HTML.
@@ -565,8 +568,11 @@ var Shareabouts = Shareabouts || {};
             '<div style="font-size:13px; color:#2e7d32; font-weight:bold; margin:2px 0 7px;">' +
               esc(nextStepLead) + '</div>' :
             '<div style="font-size:12px; color:#2e7d32; margin:4px 0 9px;">You are on the way</div>';
+          var lost = gpsLost ?
+            '<div style="font-size:12px; color:#b8860b; font-weight:bold; margin:0 0 7px;">' +
+              esc(gpsLost) + '</div>' : '';
           html =
-            turn +
+            turn + lost +
             '<div style="font-size:13px; color:#666; margin:0 0 9px;">' + big +
               ' <span style="color:#888;">' + small + ' left</span></div>' +
             '<a href="#" class="kk-rc-stop" style="display:block; border:1px solid #e5b8b2; color:#c0392b;' +
@@ -615,6 +621,13 @@ var Shareabouts = Shareabouts || {};
         profile = p;
         try { window.localStorage.setItem('kk-route-mode', p); } catch (e) {}
         lastSummary = null;
+        // Drop the old profile's turns as well as its distance. Otherwise
+        // the card sat there advising "First: Walk east on Buddha Path"
+        // under a highlighted Drive chip until the driving route answered.
+        instructions = null;
+        routeCoords = null;
+        nextStep = null;
+        nextStepLead = '';
         if (self.routingControl) {
           self.map.removeControl(self.routingControl);
           self.routingControl = null;
@@ -629,7 +642,15 @@ var Shareabouts = Shareabouts || {};
       // Manual mode taps land here too (isFallback: no second fallback).
       var makeRoute = function(prof, isFallback) {
         var fitOnce = false;
-        self.routingControl = L.Routing.control({
+        var ctl;
+        // Taking a control off the map does NOT cancel the request it has in
+        // flight — it still answers, up to 30s later on bad data. Every
+        // handler below therefore checks it is still the live control, or a
+        // late reply would zoom the map to a route the student cancelled,
+        // overwrite the card with another profile's turns, or tear down a
+        // session they have since started to a different room.
+        var isCurrent = function() { return self.routingControl === ctl; };
+        ctl = L.Routing.control({
           waypoints: [lastRouted, destLatLng],
           router: L.Routing.mapbox(S.bootstrapped.mapboxToken, { profile: 'mapbox/' + prof }),
           fitSelectedRoutes: false,
@@ -655,11 +676,13 @@ var Shareabouts = Shareabouts || {};
             return null;
           }
         }).addTo(self.map);
+        self.routingControl = ctl;
 
         // Preview: zoom the map out so the student sees the WHOLE trip -
         // where they are, where the room is, and the road between - with
         // room for the bottom card. After Start, never re-zoom on re-routes.
-        self.routingControl.on('routesfound', function(e) {
+        ctl.on('routesfound', function(e) {
+          if (!isCurrent()) { return; }
           var route = e.routes && e.routes[0];
           if (route && !fitOnce && !started) {
             fitOnce = true;
@@ -685,7 +708,8 @@ var Shareabouts = Shareabouts || {};
           if (route) { render(); }
         });
 
-        self.routingControl.on('routingerror', function() {
+        ctl.on('routingerror', function() {
+          if (!isCurrent()) { return; }
           if (!isFallback && prof === 'walking') {
             if (self.routingControl) {
               self.map.removeControl(self.routingControl);
@@ -735,8 +759,10 @@ var Shareabouts = Shareabouts || {};
           // ask Mapbox for a new route — that is what makes it feel live.
           var prevStep = nextStep;
           var prevLead = nextStepLead;
+          var wasLost = gpsLost;
+          gpsLost = null;
           updateStep(now);
-          if (nextStep !== prevStep || nextStepLead !== prevLead) { render(); }
+          if (nextStep !== prevStep || nextStepLead !== prevLead || wasLost) { render(); }
 
           // Only re-route after moving ~15 meters, at most every 10 seconds.
           if (now.distanceTo(lastRouted) < 15 ||
@@ -746,7 +772,17 @@ var Shareabouts = Shareabouts || {};
           if (self.routingControl) {
             self.routingControl.spliceWaypoints(0, 1, now);
           }
-        }, null, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+        }, function(err) {
+          // Losing the fix used to be silent: the card kept showing the last
+          // turn and distance for ever, looking exactly like a working
+          // route. Say so instead, and keep the route drawn so they can
+          // still read the line.
+          if (arrived || state !== 'nav') { return; }
+          gpsLost = (err && err.code === 1) ?
+            'Location permission was turned off' :
+            'Lost your location — waiting for GPS';
+          render();
+        }, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
       };
 
       render();
