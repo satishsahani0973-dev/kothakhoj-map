@@ -529,12 +529,12 @@ check('contact_block helper wraps blockHtml as SafeString', () => {
 console.log('config/template wiring');
 check("config: contact field relabeled to Owner's Contact Number", () =>
   assert.ok(configText.includes("_(Owner's Contact Number)")));
-check('config: contact_role select exists with Owner listed first', () => {
-  assert.ok(configText.includes('name: contact_role'), 'field present');
-  const roleBlock = configText.split('Whose number is this?').pop().split('name: contact_role')[0];
-  assert.ok(roleBlock.indexOf('value: owner') !== -1 &&
-            roleBlock.indexOf('value: owner') < roleBlock.indexOf('value: other'),
-            'Owner is the default first option');
+check('the "Whose number is this?" question is gone from the form', () => {
+  // Satish removed it 2026-08-25 — one less thing to answer per room. The
+  // KK.contact helpers stay: older places still carry a role, and they must
+  // keep rendering correctly.
+  assert.ok(!configText.includes('name: contact_role'), 'field removed');
+  assert.ok(!configText.includes('Whose number is this?'), 'label removed');
 });
 const detailTpl = fs.readFileSync(path.join(FLAVOR, 'jstemplates/place-detail.html'), 'utf8');
 check('detail template: generic loop excludes both contact fields', () =>

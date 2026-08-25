@@ -620,11 +620,17 @@ body.signin-gate #list-container {
   display: inline-block;
   border: 1px solid #d0cec6;
   border-radius: 999px;
-  padding: 8px 15px;
-  font-size: 13.5px;
+  /* Sized so all three room types fit on ONE line at 360px — wrapping
+     "Flat" onto its own row made the group look unfinished. */
+  padding: 8px 11px;
+  font-size: 12.5px;
   color: #444;
   background: #fff;
   font-weight: normal;
+  white-space: nowrap;
+}
+.place-form .radio-group label {
+  margin: 0 5px 6px 0;
 }
 .place-form .radio-group input[type="radio"]:checked + .radio-label-text {
   background: #007fbf;
@@ -635,6 +641,13 @@ body.signin-gate #list-container {
 /* Keyboard users must still see which chip has focus. */
 .place-form .radio-group input[type="radio"]:focus + .radio-label-text {
   box-shadow: 0 0 0 2px rgba(0, 127, 191, 0.45);
+}
+
+/* The room description is a nice-to-have, not the point of the form — it
+   should not be the tallest thing on the screen. */
+.place-form textarea[name="description"] {
+  min-height: 3.4em;
+  height: 3.4em;
 }
 
 /* Comment box: two rows, and the name sits beside the button instead of

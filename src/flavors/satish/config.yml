@@ -193,17 +193,6 @@ place:
         - key: title
           value: _(Please enter a valid Nepal mobile number starting with 98 or 97 or 96)
 
-    - prompt: _(Whose number is this?)
-      label: _(Whose number is this?)
-      type: select
-      optional: true
-      options:
-        - label: _(Owner)
-          value: owner
-        - label: _(Other person)
-          value: other
-      name: contact_role
-
     - prompt: _(Description)
       type: textarea
       name: description
