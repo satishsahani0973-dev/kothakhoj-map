@@ -270,6 +270,64 @@ check('yours rules: unbound keeps legacy token match', () =>
 check('yours rules: unbound with my-list match', () =>
   assert.strictEqual(KK.deviceRules.isMine(false, true, false), true));
 
+// ---- college search aliases (bug: split on "," but the sheet uses "/") ----
+console.log('college search alias splitting');
+check('map-view splits aliases on the slash the sheet actually uses', () => {
+  const mv = fs.readFileSync(
+    path.join(FLAVOR, '../../sa_web/static/js/views/map-view.js'), 'utf8');
+  assert.ok(/aliases\.split\(\/\[\\\/,\]\/\)/.test(mv),
+    'splits on / as well as ,');
+  assert.ok(!/aliases\.split\(','\)/.test(mv),
+    'the comma-only split is gone');
+});
+check('a slash-separated alias list becomes separate search terms', () => {
+  // Mirrors what loadFuse builds, so the two Kalika sectors stay distinct.
+  const aliases = 'kalika mano vigyan/kalika sector 1/kalika science';
+  const terms = aliases.split(/[\/,]/).map(s => s.trim()).filter(Boolean);
+  assert.deepStrictEqual(terms,
+    ['kalika mano vigyan', 'kalika sector 1', 'kalika science']);
+});
+check('search result shows which alias matched, so sectors are tellable apart', () => {
+  const mv = fs.readFileSync(
+    path.join(FLAVOR, '../../sa_web/static/js/views/map-view.js'), 'utf8');
+  assert.ok(/place\.displayName && place\.name !== place\.displayName/.test(mv),
+    'only shows the alias when it differs from the official name');
+  assert.ok(/\.text\([^)]*\(matched \|\| label\)\)/.test(mv),
+    'leads with the alias the student typed');
+  assert.ok(/\$item\.append\([\s\S]{0,120}?\.text\(/.test(mv),
+    'the place name is appended as escaped text, not raw html');
+  assert.ok(/\$input\.val\(label\)/.test(mv),
+    'clicking still puts the clean official name in the box');
+});
+check('search tolerates how students really type (no spaces, typos)', () => {
+  const mv = fs.readFileSync(
+    path.join(FLAVOR, '../../sa_web/static/js/views/map-view.js'), 'utf8');
+  assert.ok(/normalizeSearch/.test(mv), 'has a normaliser');
+  assert.ok(/replace\(\/\[\^a-z0-9ऀ-ॿ\]\/g, ''\)/.test(mv),
+    'strips spaces and punctuation but keeps Devanagari');
+  assert.ok(/self\.localSearch\s*=/.test(mv), 'exact/prefix pass exists');
+  assert.ok(/self\.localSearch \? self\.localSearch\(query\)/.test(mv),
+    'the search box actually uses it');
+});
+check('normalising squashes the ways one name gets typed', () => {
+  const norm = s => String(s == null ? '' : s).toLowerCase().replace(/[^a-z0-9ऀ-ॿ]/g, '');
+  assert.strictEqual(norm('AMDA College'), 'amdacollege');
+  assert.strictEqual(norm('amdacollege'), 'amdacollege');
+  assert.strictEqual(norm('kalika sector 1'), 'kalikasector1');
+  assert.strictEqual(norm('KalikaSector1'), 'kalikasector1');
+  assert.strictEqual(norm('कालिका मानवज्ञान'), 'कालिकामानवज्ञान');
+});
+check('a query longer than the alias still matches by prefix', () => {
+  // "amdacollege" starts with the alias "amda" -> rank 2, beating fuzzy noise
+  const norm = s => s.toLowerCase().replace(/[^a-z0-9ऀ-ॿ]/g, '');
+  const q = norm('amda college'), alias = norm('amda');
+  assert.ok(q.indexOf(alias) === 0 && alias.length >= 3);
+});
+check('empty alias fragments are dropped, not searched', () => {
+  const terms = 'kalika/kalika college//'.split(/[\/,]/).map(s => s.trim()).filter(Boolean);
+  assert.deepStrictEqual(terms, ['kalika', 'kalika college']);
+});
+
 // ---- month-end dates (bug: 31 Jan + 1 month landed on 3 Mar) ----
 console.log('freeDate month-end clamping');
 check('31 Jan + 1 month -> 28 Feb, not 3 Mar', () =>

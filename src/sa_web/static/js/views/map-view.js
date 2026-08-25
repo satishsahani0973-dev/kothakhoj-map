@@ -248,19 +248,72 @@ var Shareabouts = Shareabouts || {};
         return rows;
       }
 
+      // Strip everything a student might type differently — spaces, dots,
+      // hyphens, capitals — leaving only letters and digits (Devanagari
+      // included). "AMDA College" and "amdacollege" both become "amdacollege".
+      var normalizeSearch = function(s) {
+        return String(s == null ? '' : s).toLowerCase()
+          .replace(/[^a-z0-9ऀ-ॿ]/g, '');
+      };
+
       var loadFuse = function() {
         var searchEntries = [];
         places.forEach(function(p) {
+          p.displayName = p.name;
           searchEntries.push(p);
           if (p.aliases) {
-            p.aliases.split(',').forEach(function(alias) {
-              searchEntries.push({ name: alias.trim(), displayName: p.name, lat: p.lat, lng: p.lng });
+            // The sheet separates aliases with "/" (a comma would break the
+            // CSV column). Splitting on commas alone left every college with
+            // one giant unsplit string, so the fuzzy match scored against the
+            // whole blob — "kalika science" returned the management campus,
+            // and "kalika sector 1" returned sector 2.
+            p.aliases.split(/[\/,]/).forEach(function(alias) {
+              alias = alias.trim();
+              if (!alias) { return; }
+              searchEntries.push({ name: alias, displayName: p.name, lat: p.lat, lng: p.lng });
             });
           } else {
             p.displayName = p.name;
           }
         });
+        searchEntries.forEach(function(e) { e._norm = normalizeSearch(e.name); });
+        self.localEntries = searchEntries;
         self.localFuse = new Fuse(searchEntries, { keys: ['name'], threshold: 0.4 });
+      };
+
+      // Exact and prefix matches on the squashed form come FIRST, then the
+      // fuzzy matches. Fuzzy scoring alone sent "amda college" to Tilottama,
+      // because the common word "college" outweighed the short, distinctive
+      // "amda" — a student looking for their own college landed elsewhere.
+      self.localSearch = function(query) {
+        var n = normalizeSearch(query);
+        if (!n || !self.localEntries) { return []; }
+        var strong = [];
+        self.localEntries.forEach(function(e) {
+          var rank = null;
+          if (e._norm === n) { rank = 0; }
+          else if (e._norm.indexOf(n) === 0) { rank = 1; }
+          else if (n.indexOf(e._norm) === 0 && e._norm.length >= 3) { rank = 2; }
+          if (rank !== null) { strong.push({ item: e, rank: rank }); }
+        });
+        // Best rank first; among equals prefer the shortest (most exact) term.
+        strong.sort(function(a, b) {
+          return (a.rank - b.rank) || (a.item._norm.length - b.item._norm.length);
+        });
+        var seen = {}, out = [];
+        strong.forEach(function(s) {
+          var key = s.item.displayName || s.item.name;
+          if (seen[key]) { return; }
+          seen[key] = true;
+          out.push(s);
+        });
+        (self.localFuse ? self.localFuse.search(query) : []).forEach(function(f) {
+          var key = f.item.displayName || f.item.name;
+          if (seen[key]) { return; }
+          seen[key] = true;
+          out.push(f);
+        });
+        return out;
       };
 
       var setupFuseAndData = function() {
@@ -309,7 +362,20 @@ var Shareabouts = Shareabouts || {};
           var label = place.displayName || place.name;
           if (seen[label]) { return; }
           seen[label] = true;
-          var $item = $('<div style="padding:8px; cursor:pointer; border-top:1px solid #eee;">\uD83D\uDCCD ' + label + '</div>');
+          // Show the alias that matched next to the official name: two
+          // sectors of the same college look identical otherwise, and a
+          // student needs to see WHICH one they are about to open.
+          var matched = (place.displayName && place.name !== place.displayName) ?
+            place.name : null;
+          // Lead with the words the student actually typed, then the place
+          // it opens, so "kalika sector 1" reads back as itself instead of
+          // an official name they may not recognise.
+          var $item = $('<div style="padding:8px; cursor:pointer; border-top:1px solid #eee;"></div>')
+            .text('\uD83D\uDCCD ' + (matched || label));
+          if (matched) {
+            $item.append(
+              $('<span style="color:#888; font-size:13px;"></span>').text(' \u2014 ' + label));
+          }
           $item.on('click', function() {
             self.map.setView([place.lat, place.lng], 17);
             $input.val(label);
@@ -335,7 +401,7 @@ var Shareabouts = Shareabouts || {};
         $results.empty();
         if (!query) { return; }
 
-        var localMatches = self.localFuse ? self.localFuse.search(query).slice(0, 5) : [];
+        var localMatches = self.localSearch ? self.localSearch(query).slice(0, 5) : [];
         renderResults(localMatches, []);
 
         clearTimeout(geocodeTimer);
