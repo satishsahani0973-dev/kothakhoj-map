@@ -1,7 +1,12 @@
         <p class="posting-as">{{#_}}Posting as{{/_}} <strong>{{ current_user "username" }}</strong> <span class="posting-as-note">{{#_}}— filled automatically{{/_}}</span></p>
 
-        <p class="drag-marker-instructions">{{#_}}Drag the map to the room —{{/_}}<br>
-          {{#_}}or{{/_}} <button type="button" class="use-location-btn use-location-chip">{{#_}}use my location{{/_}}</button></p>
+        {{!-- GPS leads: on a phone almost nobody wants to drag a map to
+              their own doorstep. Dragging stays as the quiet fallback for
+              when the GPS is refused or the room is somewhere else. --}}
+        <p class="use-location-primary-wrap">
+          <button type="button" class="btn use-location-btn use-location-primary">{{#_}}Use my current location{{/_}}</button>
+        </p>
+        <p class="drag-marker-instructions">{{#_}}or drag the map to the room{{/_}}</p>
         <p class="drag-marker-warning is-visuallyhidden">{{#_}}It looks like you didn't set your location yet. Please drag the map to your location.{{/_}}</p>
 
         <div class="form-step form-step-where">

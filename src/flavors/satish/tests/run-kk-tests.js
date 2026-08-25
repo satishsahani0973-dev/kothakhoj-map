@@ -270,6 +270,47 @@ check('yours rules: unbound keeps legacy token match', () =>
 check('yours rules: unbound with my-list match', () =>
   assert.strictEqual(KK.deviceRules.isMine(false, true, false), true));
 
+// ---- add-place form: GPS first, room type chips ----
+console.log('add-place form');
+const formTpl = fs.readFileSync(path.join(FLAVOR, 'jstemplates/place-form.html'), 'utf8');
+check('GPS is the primary button, dragging is the fallback line', () => {
+  assert.ok(/use-location-primary/.test(formTpl), 'primary button present');
+  assert.ok(/Use my current location/.test(formTpl), 'says what it does');
+  assert.ok(!/use-location-chip/.test(formTpl), 'the old small chip is gone');
+  assert.ok(/or drag the map to the room/.test(formTpl), 'dragging demoted to a hint');
+});
+check('GPS button wording matches in every state', () => {
+  const js = fs.readFileSync(path.join(FLAVOR, 'static/js/custom.js'), 'utf8');
+  assert.ok(/text\('Finding you…'\)/.test(js), 'while locating');
+  assert.ok(/text\('Find me again'\)/.test(js), 'after success');
+  assert.ok(/text\('Use my current location'\)/.test(js), 'after refusal');
+});
+check('room type is a one-tap radio group, not a dropdown', () => {
+  assert.ok(/_\(Room Type\)/.test(configText), 'renamed from Location Type');
+  assert.ok(!/_\(Location Type\)/.test(configText), 'old label gone');
+  // "_(Room Type)" appears twice (prompt and label) — take the text after
+  // the LAST one, or the slice is just the gap between them.
+  const block = configText.split('_(Room Type)').pop().split('name: location_type')[0];
+  assert.ok(/type: radiogroup/.test(block), 'radiogroup, not select');
+  assert.ok(!/Choose One/.test(block), 'no empty placeholder option');
+  assert.ok(/single_room/.test(block) && /double_room/.test(block) && /flat/.test(block));
+});
+check('room type keeps its old field name so existing rooms still work', () =>
+  assert.ok(/name: location_type/.test(configText)));
+check('chip styling targets the markup the template actually renders', () => {
+  const css = fs.readFileSync(path.join(FLAVOR, 'static/css/custom.css'), 'utf8');
+  // The radio sits INSIDE the label, followed by span.radio-label-text.
+  assert.ok(/input\[type="radio"\]:checked \+ \.radio-label-text/.test(css));
+  assert.ok(/input\[type="radio"\]:focus \+ \.radio-label-text/.test(css),
+    'focus stays visible for keyboard users');
+});
+check('comment box is shortened but keeps the name field', () => {
+  const css = fs.readFileSync(path.join(FLAVOR, 'static/css/custom.css'), 'utf8');
+  assert.ok(/#new_response textarea[\s\S]{0,120}?height: 3\.4em/.test(css), 'two rows');
+  const survey = configText.split('survey:')[1] || '';
+  assert.ok(/name: submitter_name/.test(survey), 'Your Name kept, as Satish asked');
+});
+
 // ---- college search aliases (bug: split on "," but the sheet uses "/") ----
 console.log('college search alias splitting');
 check('map-view splits aliases on the slash the sheet actually uses', () => {

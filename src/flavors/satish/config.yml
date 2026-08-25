@@ -150,7 +150,7 @@ place:
     - prompt: _(Location Address)
       type: location
       name: address
-      placeholder: _(Drag the map to set the location.)
+      placeholder: _(Set by the button above, or drag the map.)
     - prompt: _(Location Name)
       type: text
       name: name
@@ -160,11 +160,13 @@ place:
           value: _(Location Name)
         - key: size
           value: 30
-    - prompt: _(Location Type)
-      type: select
+    # Radio group, not a select: the three choices stay visible and take one
+    # tap. Styled as chips in custom.css. (Field name stays location_type so
+    # existing rooms and the pin-colour rules keep working.)
+    - prompt: _(Room Type)
+      label: _(Room Type)
+      type: radiogroup
       options:
-        - label: _(Choose One)
-          value: ''
         - label: _(Single Room)
           value: single_room
         - label: _(Double Room)

@@ -552,6 +552,114 @@ body.signin-gate #list-container {
   font-size: 15px;
 }
 
+/* GPS is the main way to place a room: a full-width button above the map,
+   with dragging demoted to the quiet line underneath. */
+.use-location-primary-wrap {
+  margin: 0 0 6px;
+}
+.use-location-primary,
+#content .use-location-primary {
+  display: block;
+  width: 100%;
+  background: #00aaff;
+  color: #fff;
+  border: none;
+  border-radius: 22px;
+  padding: 12px 0;
+  font-size: 15px;
+  font-weight: bold;
+  text-align: center;
+  cursor: pointer;
+}
+.use-location-primary::before {
+  content: "📍";
+  margin-right: 7px;
+}
+.use-location-primary:hover,
+#content .use-location-primary:hover {
+  background: #0098e5;
+  color: #fff;
+}
+.use-location-primary:disabled {
+  opacity: 0.75;
+  cursor: default;
+}
+/* The drag line is now the fallback, not the instruction — so it loses the
+   theme's yellow highlight and reads as a quiet alternative. */
+.drag-marker-instructions,
+#content .drag-marker-instructions {
+  text-align: center;
+  font-size: 12.5px;
+  color: #777;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0 0 10px;
+  font-weight: normal;
+}
+
+/* Room type as one-tap chips instead of a dropdown. The template nests the
+   radio inside its own label with a .radio-label-text span, so the span is
+   the chip and the radio itself is taken out of sight (not display:none —
+   that would drop it from the tab order and from screen readers). */
+.place-form .radio-group {
+  margin: 2px 0 4px;
+}
+.place-form .radio-group label {
+  display: inline-block;
+  margin: 0 7px 7px 0;
+  cursor: pointer;
+}
+.place-form .radio-group input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.place-form .radio-group .radio-label-text {
+  display: inline-block;
+  border: 1px solid #d0cec6;
+  border-radius: 999px;
+  padding: 8px 15px;
+  font-size: 13.5px;
+  color: #444;
+  background: #fff;
+  font-weight: normal;
+}
+.place-form .radio-group input[type="radio"]:checked + .radio-label-text {
+  background: #007fbf;
+  border-color: #007fbf;
+  color: #fff;
+  font-weight: bold;
+}
+/* Keyboard users must still see which chip has focus. */
+.place-form .radio-group input[type="radio"]:focus + .radio-label-text {
+  box-shadow: 0 0 0 2px rgba(0, 127, 191, 0.45);
+}
+
+/* Comment box: two rows, and the name sits beside the button instead of
+   taking a block of its own. */
+#new_response textarea {
+  min-height: 3.4em;
+  height: 3.4em;
+}
+#new_response .field-textarea-field {
+  margin-bottom: 8px;
+}
+@media only screen and (min-width: 30em) {
+  #new_response .field:not(.textarea-field) {
+    display: inline-block;
+    width: 58%;
+    vertical-align: middle;
+    margin: 0 8px 0 0;
+  }
+  #new_response .submit-btn {
+    display: inline-block;
+    width: auto;
+    vertical-align: middle;
+  }
+}
+
 /* "use my location" as a small chip inside the drag banner */
 .use-location-chip {
   display: inline-block;

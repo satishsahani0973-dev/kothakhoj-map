@@ -352,20 +352,20 @@
         '<strong>GPS is only sure within ~' + fix.accuracy + ' m here.</strong><br>' +
         'Please drag the map to the exact building.');
     }
-    $('.use-location-btn').prop('disabled', false).text('find me again');
+    $('.use-location-btn').prop('disabled', false).text('Find me again');
   }
 
   $(document).on('click', '.use-location-btn', function() {
     var $btn = $(this);
     var map = currentMap();
     if (!map) { return; }
-    $btn.prop('disabled', true).text('finding you…');
+    $btn.prop('disabled', true).text('Finding you…');
     KK.geo.locate(map, {
       onFirst: function(fix) { map.setView([fix.lat, fix.lng], Math.max(map.getZoom(), 17)); },
       onDone: function(fix) { applyFixToForm(fix, false); },
       onError: function(message) {
         setLocationStatus('weak', message);
-        $btn.prop('disabled', false).text('use my location');
+        $btn.prop('disabled', false).text('Use my current location');
       }
     });
   });
