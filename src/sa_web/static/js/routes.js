@@ -199,6 +199,15 @@ var Shareabouts = Shareabouts || {};
           .addClass('unfiltered')
           .empty();
       }
+
+      // Tell the map which filter is on. The indicator above lives INSIDE the
+      // nav menu, so it disappears the moment the menu closes — leaving a
+      // student looking at a half-empty map with no idea why. The flavor
+      // draws a chip on the map itself from this event.
+      $(S).trigger('kk:filterchanged', [
+        locationType,
+        (menuItem && menuItem.title) || locationType
+      ]);
     },
 
     filterMap: function(locationType) {
@@ -209,6 +218,19 @@ var Shareabouts = Shareabouts || {};
         } else {
           this.navigate('/', {trigger: false});
         }
+      }
+
+      // Show the student the result of what they just tapped.
+      //
+      // The filter was applied immediately, but the menu panel stayed open on
+      // top of the map — so nothing appeared to happen, and the only way to
+      // discover it had worked was to press Back. Close the panel, but ONLY
+      // when it is holding a nav page: $panel carries exactly one of
+      // 'place-form', 'place-detail…' or 'page page-…', and closing it while
+      // someone is mid-way through adding a room would throw their typing
+      // away. The list is a separate element, so it is unaffected either way.
+      if (this.appView.$panel && this.appView.$panel.hasClass('page')) {
+        this.appView.hidePanel();
       }
     }
   });

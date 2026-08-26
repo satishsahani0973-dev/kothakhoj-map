@@ -152,6 +152,42 @@
     return out;
   };
 
+  // ---- Active filter chip -------------------------------------------------
+  // Choosing "Single Room" from the menu quietly hides most of the pins. The
+  // app's own filter indicator is drawn INSIDE the nav menu, so it vanishes
+  // when the menu closes — a student was left looking at a half-empty map
+  // with no idea why, and no way back except finding the menu again.
+  //
+  // This chip sits on the map itself and carries its own way out.
+  KK.filter = {
+    // Pure: is this a real filter, or the "show everything" default?
+    isActive: function(locationType) {
+      return !!locationType && locationType !== 'all';
+    },
+
+    html: function(label) {
+      return '<div class="kk-filter-chip">' +
+        '<span class="kk-filter-chip-label">' + KK.esc(label) + '</span>' +
+        '<a href="/filter/all" class="kk-filter-chip-clear" rel="internal" ' +
+        'aria-label="Show all rooms">&times;</a>' +
+        '</div>';
+    },
+
+    render: function(locationType, label) {
+      var $host = $('#map');
+      if (!$host.length) { return; }
+      $('.kk-filter-chip').remove();
+      if (!KK.filter.isActive(locationType)) { return; }
+      $host.append(KK.filter.html(label || locationType));
+    }
+  };
+
+  $(function() {
+    $(window.Shareabouts || {}).on('kk:filterchanged', function(evt, locationType, label) {
+      KK.filter.render(locationType, label);
+    });
+  });
+
   // ---- Report a room -----------------------------------------------------
   // The e-commerce listing rules require a working grievance route, and a
   // phone number on a page nobody reads is not one. This puts the complaint

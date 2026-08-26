@@ -823,5 +823,45 @@ check('the page is declared so /page/business resolves', () => {
   assert.ok(/name:\s*business/.test(cfg));
 });
 
+// ---- filter chip (bug: choosing a filter changed nothing on screen) ----
+console.log('filter chip');
+check('"all" is not a filter, so no chip', () => {
+  assert.strictEqual(KK.filter.isActive('all'), false);
+  assert.strictEqual(KK.filter.isActive(''), false);
+  assert.strictEqual(KK.filter.isActive(undefined), false);
+});
+check('a real room type is a filter', () => {
+  assert.strictEqual(KK.filter.isActive('single_room'), true);
+  assert.strictEqual(KK.filter.isActive('flat'), true);
+});
+check('the chip shows the label and carries its own way out', () => {
+  const html = KK.filter.html('Single Room');
+  assert.ok(html.includes('Single Room'));
+  assert.ok(html.includes('/filter/all'), 'no way to clear the filter');
+});
+check('a hostile label cannot break out of the chip', () => {
+  const html = KK.filter.html('<img src=x onerror=alert(1)>');
+  assert.ok(!html.includes('<img'), 'raw tag leaked into the chip');
+});
+check('choosing a filter closes the nav page so the map is visible', () => {
+  // The whole bug: the filter applied behind the open menu, so nothing
+  // appeared to happen and the only way to see it was to press Back.
+  const routes = fs.readFileSync(
+    path.join(FLAVOR, '../../sa_web/static/js/routes.js'), 'utf8');
+  const fn = routes.slice(routes.indexOf('filterMap: function'));
+  assert.ok(/hidePanel\(\)/.test(fn.slice(0, 1200)), 'filterMap never closes the panel');
+  assert.ok(/hasClass\('page'\)/.test(fn.slice(0, 1200)),
+    'must only close a nav page - never the add-room form');
+});
+check('the filter change is announced so the map can draw the chip', () => {
+  const routes = fs.readFileSync(
+    path.join(FLAVOR, '../../sa_web/static/js/routes.js'), 'utf8');
+  assert.ok(routes.includes('kk:filterchanged'));
+});
+check('the chip hides during the directions flow', () => {
+  const css = fs.readFileSync(path.join(FLAVOR, 'static/css/custom.css'), 'utf8');
+  assert.ok(/body\.kk-directions\s+\.kk-filter-chip\s*\{[^}]*display:\s*none/.test(css));
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

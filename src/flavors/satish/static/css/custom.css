@@ -987,3 +987,50 @@ body.kk-directions .kk-legend { display: none; }
 .kk-report-or { color: #999; }
 .kk-biz-note { font-size: 12px; color: #777; }
 .kk-biz-list { margin: 6px 0 14px 18px; font-size: 14px; line-height: 1.7; }
+
+/* Active-filter chip on the map. Sits under the search box, out of the way of
+   the legend (bottom-left) and the Add-a-place pill (bottom). */
+.kk-filter-chip {
+  position: absolute;
+  /* Below the search box, not behind it: .merged-search-box occupies roughly
+     70-108px inside #map and carries z-index 1200, so a chip any higher is
+     simply hidden. Measured in the browser, not guessed. */
+  top: 7.4rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 80%;
+  padding: 6px 8px 6px 12px;
+  border-radius: 20px;
+  background: #007fbf;
+  color: #fff;
+  font-size: 13px;
+  font-weight: bold;
+  box-shadow: 0 1px 4px rgba(0,0,0,.35);
+}
+.kk-filter-chip-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Big enough to hit with a thumb without magnifying the chip itself. */
+.kk-filter-chip-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.25);
+  color: #fff;
+  font-size: 16px;
+  line-height: 1;
+  text-decoration: none;
+}
+.kk-filter-chip-clear:hover,
+.kk-filter-chip-clear:focus { background: rgba(255,255,255,.4); color: #fff; }
+/* The directions flow takes over the screen; the chip must not sit on it. */
+body.kk-directions .kk-filter-chip { display: none; }
