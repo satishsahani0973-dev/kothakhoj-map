@@ -291,6 +291,13 @@ pages:
     name: overview
     start_page: true
 
+  # Required by the e-commerce listing rules: the platform must publicly
+  # identify the business behind it and say who hears complaints. Linked from
+  # the footer of every page, not just the nav.
+  - title: _(व्यवसायको विवरण)
+    slug: business
+    name: business
+
   # Not shown in the nav (hidden) — opened by the header Sign In link and
   # the add-place welcome. The map keeps running behind the panel.
   - title: _(Sign in)

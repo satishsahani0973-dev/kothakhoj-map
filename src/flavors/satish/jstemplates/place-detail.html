@@ -72,6 +72,9 @@
           </div>
           {{/each_place_item }}
           {{ contact_block contact_number contact_role }}
+          {{!-- Grievance route required by the e-commerce listing rules, put
+                where a complaint actually starts: on the room itself. --}}
+          {{ report_block id name }}
         </section>
 
         {{#if survey_config}}

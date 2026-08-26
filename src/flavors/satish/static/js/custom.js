@@ -152,6 +152,49 @@
     return out;
   };
 
+  // ---- Report a room -----------------------------------------------------
+  // The e-commerce listing rules require a working grievance route, and a
+  // phone number on a page nobody reads is not one. This puts the complaint
+  // one tap from the room being complained about, and carries the room's own
+  // link so the report says WHICH room without the student having to explain.
+  //
+  // Both channels on purpose: WhatsApp is what students in Butwal actually
+  // use, and email is the fallback when a call or message goes unanswered.
+  KK.report = {
+    NUMBER: '9779704452372',
+    EMAIL: 'kothakhoj4@gmail.com',
+
+    // Pure: the message body, so it can be tested without a DOM.
+    message: function(name, url) {
+      return 'KothaKhoj — गुनासो / Report a room\n\n' +
+        'Room: ' + (name || 'this room') + '\n' +
+        'Link: ' + (url || '') + '\n\n' +
+        'What is wrong: ';
+    },
+
+    waHref: function(name, url) {
+      return 'https://wa.me/' + KK.report.NUMBER +
+        '?text=' + encodeURIComponent(KK.report.message(name, url));
+    },
+
+    mailHref: function(name, url) {
+      return 'mailto:' + KK.report.EMAIL +
+        '?subject=' + encodeURIComponent('KothaKhoj — report a room') +
+        '&body=' + encodeURIComponent(KK.report.message(name, url));
+    },
+
+    blockHtml: function(id, name) {
+      var url = 'https://kothakhoj.com/place/' + encodeURIComponent(id || '');
+      return '<p class="kk-report">' +
+        '<span class="kk-report-label">Room already taken, wrong rent, or not real?</span> ' +
+        '<a class="kk-report-link" href="' + KK.esc(KK.report.waHref(name, url)) + '" ' +
+        'target="_blank" rel="noopener noreferrer">Report on WhatsApp</a>' +
+        '<span class="kk-report-or"> or </span>' +
+        '<a class="kk-report-link" href="' + KK.esc(KK.report.mailHref(name, url)) + '">email us</a>' +
+        '</p>';
+    }
+  };
+
   // ---- Availability badge -------------------------------------------------
   // Pure decision used by the detail page badge (and tests).
   //
@@ -300,6 +343,10 @@
     });
     window.Handlebars.registerHelper('contact_block', function(number, role) {
       return new window.Handlebars.SafeString(KK.contact.blockHtml(number, role));
+    });
+    window.Handlebars.registerHelper('report_block', function(id, name) {
+      var n = typeof name === 'string' ? name : '';
+      return new window.Handlebars.SafeString(KK.report.blockHtml(id, n));
     });
   }
 

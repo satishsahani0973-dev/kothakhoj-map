@@ -761,5 +761,67 @@ check('detail template: generic loop excludes both contact fields', () =>
 check('detail template: renders the contact block', () =>
   assert.ok(detailTpl.includes('contact_block contact_number contact_role')));
 
+
+// ---- report a room (grievance route required by the e-commerce rules) ----
+console.log('report');
+check('the message names the room and carries its link', () => {
+  const m = KK.report.message('Single Room near AMDA', 'https://kothakhoj.com/place/12');
+  assert.ok(m.includes('Single Room near AMDA'));
+  assert.ok(m.includes('https://kothakhoj.com/place/12'));
+});
+check('missing name or link still produces a usable message', () => {
+  const m = KK.report.message('', '');
+  assert.ok(m.includes('this room'), m);
+});
+check('both channels are offered, WhatsApp and email', () => {
+  const html = KK.report.blockHtml(12, 'A room');
+  assert.ok(html.includes('wa.me/9779704452372'), 'whatsapp');
+  assert.ok(html.includes('mailto:kothakhoj4@gmail.com'), 'email');
+});
+check('the room link points at the public site, not localhost', () => {
+  // The link is carried inside the message body, so it arrives percent-encoded
+  // in the href — decode before looking for it.
+  const decoded = decodeURIComponent(KK.report.blockHtml(12, 'x'));
+  assert.ok(decoded.includes('https://kothakhoj.com/place/12'), decoded.slice(0, 200));
+  assert.ok(!decoded.includes('localhost') && !decoded.includes('127.0.0.1'));
+});
+check('a room name with quotes or html cannot break out of the link', () => {
+  const html = KK.report.blockHtml(1, '<img src=x onerror=alert(1)>"');
+  assert.ok(!html.includes('<img'), 'raw tag leaked into the markup');
+  assert.ok(!/href="[^"]*"[^>]*onerror/.test(html), 'attribute broken out of');
+});
+check('report_block helper returns a SafeString', () => {
+  const out = Handlebars.helpers.report_block(3, 'Room');
+  assert.ok(String(out).includes('kk-report'));
+});
+check('detail template renders the report block', () => {
+  const tpl = fs.readFileSync(path.join(FLAVOR, 'jstemplates/place-detail.html'), 'utf8');
+  assert.ok(/report_block\s+id\s+name/.test(tpl));
+});
+
+// ---- business details page (e-commerce listing requirement) ----
+console.log('business details page');
+check('the page carries every detail the department asked for', () => {
+  const biz = fs.readFileSync(path.join(FLAVOR, 'jstemplates/pages/business.html'), 'utf8');
+  ['५२/०८३/०८४', '१५७५६४७२१', 'घरेलु तथा साना उद्योग कार्यालय',
+   'अमनिगंज', '९७०४४५२३७२', 'kothakhoj4@gmail.com',
+   'गुनासो सुनवाई गर्ने व्यक्ति'].forEach(needle =>
+    assert.ok(biz.includes(needle), 'missing from the page: ' + needle));
+});
+check('the citizenship number is NOT published', () => {
+  const biz = fs.readFileSync(path.join(FLAVOR, 'jstemplates/pages/business.html'), 'utf8');
+  assert.ok(!biz.includes('३६-०१-८०-०५२००'), 'citizenship number leaked onto a public page');
+});
+check('the footer identifies the firm on every page', () => {
+  const idx = fs.readFileSync(path.join(FLAVOR, 'templates/index.html'), 'utf8');
+  assert.ok(idx.includes('firm-line'));
+  assert.ok(idx.includes('/page/business'));
+});
+check('the page is declared so /page/business resolves', () => {
+  const cfg = fs.readFileSync(path.join(FLAVOR, 'config.yml'), 'utf8');
+  assert.ok(/slug:\s*business/.test(cfg));
+  assert.ok(/name:\s*business/.test(cfg));
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

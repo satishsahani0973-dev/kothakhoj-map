@@ -909,3 +909,81 @@ body.kk-directions .kk-legend { display: none; }
   background: #1ebe5d;
   color: #fff;
 }
+
+
+/* ---- Business details page (e-commerce listing requirement) -------------
+   The platform has to publicly identify the firm behind it and name who
+   hears complaints, so this has to stay readable on a small phone. */
+#firm-line {
+  margin: 2px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #777;
+  text-align: center;
+}
+#firm-line a { color: #007fbf; }
+
+.kk-biz-lead {
+  font-size: 14px;
+  color: #555;
+}
+.kk-biz-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0 18px;
+  font-size: 14px;
+}
+.kk-biz-table th,
+.kk-biz-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 9px 10px 9px 0;
+  border-bottom: 1px solid #e4e4e4;
+  line-height: 1.5;
+}
+/* Nepali labels run long; give them room but never let the value column
+   collapse on a 320px screen. */
+.kk-biz-table th {
+  width: 42%;
+  font-weight: bold;
+  color: #333;
+  padding-right: 14px;
+}
+.kk-biz-table td { color: #444; }
+.kk-biz-en {
+  font-size: 13px;
+  color: #555;
+}
+@media only screen and (max-width: 26em) {
+  .kk-biz-table th,
+  .kk-biz-table td {
+    display: block;
+    width: auto;
+    border-bottom: 0;
+    padding: 0;
+  }
+  .kk-biz-table td {
+    padding: 0 0 10px;
+    border-bottom: 1px solid #e4e4e4;
+    margin-bottom: 10px;
+  }
+  .kk-biz-table th { padding-top: 2px; }
+}
+
+/* Report link on each room. Quiet by design — it must be findable when a
+   student needs it, without competing with the owner's contact button. */
+.kk-report {
+  /* Bottom margin matters: the comment form sits straight after this, and
+     without it "Leave a Comment" crowds the report line. */
+  margin: 14px 0 20px;
+  padding-top: 10px;
+  border-top: 1px solid #e4e4e4;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #777;
+}
+.kk-report-label { display: block; }
+.kk-report-link { color: #007fbf; text-decoration: underline; }
+.kk-report-or { color: #999; }
+.kk-biz-note { font-size: 12px; color: #777; }
+.kk-biz-list { margin: 6px 0 14px 18px; font-size: 14px; line-height: 1.7; }
