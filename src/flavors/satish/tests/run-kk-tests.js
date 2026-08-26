@@ -62,24 +62,36 @@ check('table is sorted and every entry parses', () => {
     prev = ts;
   });
 });
-check('bsTs is LOCAL midnight, not UTC', () => {
-  // Date.parse('2026-10-18') would be UTC midnight, which in Nepal (+05:45)
-  // is the evening of the 17th and would flip a pin a day early.
-  const d = new Date(KK.bsTs('2026-10-18'));
-  assert.strictEqual(d.getFullYear(), 2026);
-  assert.strictEqual(d.getMonth(), 9);
-  assert.strictEqual(d.getDate(), 18);
-  assert.strictEqual(d.getHours(), 0);
+check('bsTs is NEPAL midnight, identical on every device', () => {
+  // These dates name days on a Nepali calendar and the API stores free_ts as
+  // Nepal midnight, so both sides must land on the same instant no matter
+  // where the phone is. Using the device clock made a room set to Kartik read
+  // as "Ashoj" for every viewer behind +05:45 - the whole of India included.
+  // This exact number is also what the API's Python produces for that day.
+  assert.strictEqual(KK.bsTs('2026-10-18'), 1792260900000);
+});
+check('and it does not drift when the device is not in Nepal', () => {
+  // Recompute the way the old device-local version did, and prove the two
+  // disagree anywhere except Nepal - so a regression is caught, not silent.
+  const deviceLocal = new Date(2026, 9, 18, 0, 0, 0, 0).getTime();
+  const offset = new Date(2026, 9, 18).getTimezoneOffset();
+  if (offset !== -345) {
+    assert.notStrictEqual(deviceLocal, KK.bsTs('2026-10-18'),
+      'device-local midnight should differ outside Nepal');
+  }
+  // Whatever the device thinks, the label must still name the right month.
+  assert.strictEqual(KK.bsLabel(1792260900000), 'Kartik 2083');
 });
 check('cross-checked against a published festival date', () => {
   // Ghatasthapana 2083 = Ashoj 25 = Sunday 11 Oct 2026 (published).
   // Ashoj 1 must therefore be 24 days earlier, on 17 Sep 2026.
   const ashoj = KK.bsMonths.find(m => m.m === 'Ashoj' && m.y === 2083);
   assert.strictEqual(ashoj.ad, '2026-09-17');
-  const day25 = new Date(KK.bsTs(ashoj.ad) + 24 * 86400000);
-  assert.strictEqual(day25.getDate(), 11);
-  assert.strictEqual(day25.getMonth(), 9);
-  assert.strictEqual(day25.getDay(), 0); // Sunday
+  // Read the instant back in NEPAL, not on whatever machine runs the tests.
+  const day25 = new Date(KK.bsTs(ashoj.ad) + 24 * 86400000 + KK.NPT_OFFSET_MS);
+  assert.strictEqual(day25.getUTCDate(), 11);
+  assert.strictEqual(day25.getUTCMonth(), 9);
+  assert.strictEqual(day25.getUTCDay(), 0); // Sunday
 });
 check('bsUpcoming returns only months still ahead', () => {
   const from = new Date(2026, 9, 20); // 20 Oct 2026, inside Kartik 2083
@@ -120,7 +132,7 @@ check('a chosen month -> state date, ISO date, matching ts', () => {
   const r = KK.freeDate.compute(kartik);
   assert.strictEqual(r.state, 'date');
   assert.strictEqual(r.freeFrom, '2026-10-18');
-  assert.strictEqual(Number(r.freeTs), new Date(2026, 9, 18).getTime());
+  assert.strictEqual(Number(r.freeTs), 1792260900000); // Nepal midnight, same as the API
   assert.strictEqual(r.label, 'Kartik 2083');
 });
 check('free_ts is ALWAYS numeric-or-empty, never a sentinel', () => {
@@ -510,12 +522,14 @@ check('empty alias fragments are dropped, not searched', () => {
 // now impossible: a room is always free from the FIRST day of a chosen
 // Nepali month, read from a table, so nothing is ever added to a date.
 console.log('freeDate month starts');
-check('every table entry is the 1st of its Nepali month, at local midnight', () => {
+check('every table entry is the 1st of its Nepali month, at NEPAL midnight', () => {
   KK.bsMonths.slice(0, 12).forEach(mo => {
-    const d = new Date(KK.freeDate.compute(mo).freeTs * 1);
-    assert.strictEqual(d.getHours(), 0, mo.ad + ' is not at midnight');
-    assert.strictEqual(d.getMinutes(), 0);
-    assert.strictEqual(d.getSeconds(), 0);
+    // Shift into Nepal before reading the clock fields, so this holds on a
+    // laptop in any timezone as well as on a phone in Butwal.
+    const d = new Date(Number(KK.freeDate.compute(mo).freeTs) + KK.NPT_OFFSET_MS);
+    assert.strictEqual(d.getUTCHours(), 0, mo.ad + ' is not at Nepal midnight');
+    assert.strictEqual(d.getUTCMinutes(), 0);
+    assert.strictEqual(d.getUTCSeconds(), 0);
   });
 });
 check('no month arithmetic survives - compute takes a table entry, not a count', () => {
@@ -529,13 +543,13 @@ check('a room is green from the first morning of its month', () => {
   // poster happened to open the form.
   const kartik = KK.bsMonths.find(m => m.m === 'Kartik' && m.y === 2083);
   const r = KK.freeDate.compute(kartik);
-  const morning = new Date(2026, 9, 18, 8, 0).getTime();
+  const morning = KK.bsTs('2026-10-18') + 8 * 60 * 60 * 1000; // 08:00 in Nepal
   assert.strictEqual(KK.availability(r.freeTs, morning, 'date').state, 'now');
 });
 check('and still orange the evening before', () => {
   const kartik = KK.bsMonths.find(m => m.m === 'Kartik' && m.y === 2083);
   const r = KK.freeDate.compute(kartik);
-  const nightBefore = new Date(2026, 9, 17, 23, 30).getTime();
+  const nightBefore = KK.bsTs('2026-10-18') - 30 * 60 * 1000; // 23:30 in Nepal
   assert.strictEqual(KK.availability(r.freeTs, nightBefore, 'date').state, 'later');
 });
 check('an "ask" room NEVER flips on its own', () => {

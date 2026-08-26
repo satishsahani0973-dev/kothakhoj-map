@@ -102,12 +102,21 @@
     { m: 'Mangsir', y: 2086, ad: '2029-11-16' }
   ];
 
-  // Local midnight of a 'YYYY-MM-DD' string. Deliberately NOT Date.parse():
-  // that reads a bare ISO date as UTC, which in Nepal (+05:45) lands the
-  // room on the evening before and can flip a pin a day early.
+  // Midnight in NEPAL of a 'YYYY-MM-DD' string.
+  //
+  // Deliberately not the device's local midnight. These dates name days on a
+  // Nepali calendar, and the API stores free_ts as Nepal midnight, so the two
+  // must be the same instant no matter where the phone is. Using the device
+  // clock made a room set to Kartik read as "Ashoj" for every viewer behind
+  // +05:45 — the whole of India included — because the stored timestamp fell
+  // 15 minutes short of that device's idea of when Kartik began.
+  //
+  // Nepal has been a fixed +05:45 since 1986 with no DST, so a constant is
+  // correct here and does not need a timezone database.
+  KK.NPT_OFFSET_MS = (5 * 60 + 45) * 60 * 1000;
   KK.bsTs = function(iso) {
     var p = String(iso).split('-');
-    return new Date(+p[0], +p[1] - 1, +p[2], 0, 0, 0, 0).getTime();
+    return Date.UTC(+p[0], +p[1] - 1, +p[2], 0, 0, 0, 0) - KK.NPT_OFFSET_MS;
   };
 
   // Which Nepali month does this moment fall in? Used for the badge, so a
