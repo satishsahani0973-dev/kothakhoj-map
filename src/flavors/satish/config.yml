@@ -77,9 +77,27 @@ map:
 place_types:
   single_room:
     label: _(Single Room)
+    # Order is load-bearing: a bare '{{layer.focused}} === true' would
+    # swallow every focused pin, so the focused variants come first, most
+    # specific first.
+    #
+    # Two rules to keep in mind when editing:
+    #  * ALWAYS quote "{{free_state}}". L.Argo.t splices the raw value into
+    #    the condition text and eval()s it with no try/catch, so an unquoted
+    #    value becomes a bare identifier and throws out of initLayer — the
+    #    pin then does not render at all. A missing key substitutes the
+    #    literal string "undefined", which safely fails every ===.
+    #  * ALWAYS guard the free_ts comparisons with Number(...) > 0. An "ask"
+    #    room stores free_ts as "", and Number("") is 0, so an unguarded
+    #    `<= Date.now()` would paint every blue pin green.
+    #
+    # The catch-all is BLUE, not green. Green now has to be earned by an
+    # explicit answer, so legacy rows, a stale cached bundle mid-deploy, or
+    # a future typo all fail toward "go and ask" rather than toward
+    # "walk twenty minutes to a room that is already taken".
     rules: &availability-rules
-      - condition: '{{layer.focused}} === true && Number("{{free_ts}}") > Date.now()'
-        # Focused + still occupied: big orange marker
+      - condition: '{{layer.focused}} === true && "{{free_state}}" !== "ask" && Number("{{free_ts}}") > Date.now()'
+        # Focused + free later: big orange marker
         icon:
           iconUrl: /static/css/images/markers/marker-f95016.png
           shadowUrl: /static/css/images/marker-shadow.png
@@ -87,8 +105,8 @@ place_types:
           shadowSize: [41, 41]
           iconAnchor: [12, 41]
 
-      - condition: '{{layer.focused}} === true'
-        # Focused + available: big green marker
+      - condition: '{{layer.focused}} === true && ("{{free_state}}" === "now" || ("{{free_state}}" !== "ask" && Number("{{free_ts}}") > 0 && Number("{{free_ts}}") <= Date.now()))'
+        # Focused + available now: big green marker
         icon:
           iconUrl: /static/css/images/markers/marker-4bbd45.png
           shadowUrl: /static/css/images/marker-shadow.png
@@ -96,17 +114,33 @@ place_types:
           shadowSize: [41, 41]
           iconAnchor: [12, 41]
 
-      - condition: 'Number("{{free_ts}}") > Date.now()'
-        # Still occupied: orange dot
+      - condition: '{{layer.focused}} === true'
+        # Focused + nobody knows yet: big blue marker
+        icon:
+          iconUrl: /static/css/images/markers/marker-0d85e9.png
+          shadowUrl: /static/css/images/marker-shadow.png
+          iconSize: [25, 41]
+          shadowSize: [41, 41]
+          iconAnchor: [12, 41]
+
+      - condition: '"{{free_state}}" !== "ask" && Number("{{free_ts}}") > Date.now()'
+        # Free later: orange dot
         icon:
           iconUrl: /static/css/images/markers/dot-f95016.png
           iconSize: [17, 18]
           iconAnchor: [9, 9]
 
-      - condition: 'true'
-        # Available now (also every place saved before this feature): green dot
+      - condition: '"{{free_state}}" === "now" || ("{{free_state}}" !== "ask" && Number("{{free_ts}}") > 0 && Number("{{free_ts}}") <= Date.now())'
+        # Available now: green dot
         icon:
           iconUrl: /static/css/images/markers/dot-4bbd45.png
+          iconSize: [17, 18]
+          iconAnchor: [9, 9]
+
+      - condition: 'true'
+        # Nobody knows yet, or a place saved before this feature: blue dot
+        icon:
+          iconUrl: /static/css/images/markers/dot-0d85e9.png
           iconSize: [17, 18]
           iconAnchor: [9, 9]
 

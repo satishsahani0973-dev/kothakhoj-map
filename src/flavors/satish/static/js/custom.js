@@ -8,6 +8,14 @@
   // exercise them without a DOM or storage.
   var KK = window.KothaKhoj = window.KothaKhoj || {};
 
+  // Escape before anything reaches an innerHTML string. Shared, because
+  // several features build small chunks of markup by hand.
+  KK.esc = function(s) {
+    return String(s).replace(/[&<>"']/g, function(c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  };
+
   // ---- First-visit sign-in gate ------------------------------------------
   // Visitors who are not signed in and never chose "Continue browsing" get
   // the sign-in panel over a blurred map. Shared /place/ links skip the
@@ -44,19 +52,132 @@
     }
   };
 
-  // ---- Availability badge -------------------------------------------------
-  // Pure decision used by the detail page badge (and tests): a place is
-  // available unless it carries a future free_ts. Legacy places have no
-  // free_ts at all and must read as available.
-  KK.availability = function(free_ts, now) {
-    var ts = Number(free_ts);
-    now = now || Date.now();
-    if (!ts || isNaN(ts) || ts <= now) { return { state: 'now', label: '' }; }
-    return {
-      state: 'later',
-      label: new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-    };
+  // ---- Nepali months ------------------------------------------------------
+  // Bikram Sambat month starts, as AD dates. Generated from the
+  // nepali-datetime library and cross-checked against a published
+  // festival date (Ghatasthapana = Ashoj 25, 2083 = Sun 11 Oct 2026).
+  // BS month lengths vary year to year and cannot be computed, so this
+  // table is the only source of truth. It ends at 2029-11-16 — regenerate
+  // before then, or 'Pick a month' quietly runs out of chips.
+  KK.bsMonths = [
+    { m: 'Bhadra', y: 2083, ad: '2026-08-17' },
+    { m: 'Ashoj', y: 2083, ad: '2026-09-17' },
+    { m: 'Kartik', y: 2083, ad: '2026-10-18' },
+    { m: 'Mangsir', y: 2083, ad: '2026-11-17' },
+    { m: 'Poush', y: 2083, ad: '2026-12-16' },
+    { m: 'Magh', y: 2083, ad: '2027-01-15' },
+    { m: 'Falgun', y: 2083, ad: '2027-02-13' },
+    { m: 'Chaitra', y: 2083, ad: '2027-03-15' },
+    { m: 'Baisakh', y: 2084, ad: '2027-04-14' },
+    { m: 'Jestha', y: 2084, ad: '2027-05-15' },
+    { m: 'Ashar', y: 2084, ad: '2027-06-15' },
+    { m: 'Shrawan', y: 2084, ad: '2027-07-17' },
+    { m: 'Bhadra', y: 2084, ad: '2027-08-17' },
+    { m: 'Ashoj', y: 2084, ad: '2027-09-17' },
+    { m: 'Kartik', y: 2084, ad: '2027-10-17' },
+    { m: 'Mangsir', y: 2084, ad: '2027-11-16' },
+    { m: 'Poush', y: 2084, ad: '2027-12-16' },
+    { m: 'Magh', y: 2084, ad: '2028-01-14' },
+    { m: 'Falgun', y: 2084, ad: '2028-02-13' },
+    { m: 'Chaitra', y: 2084, ad: '2028-03-14' },
+    { m: 'Baisakh', y: 2085, ad: '2028-04-13' },
+    { m: 'Jestha', y: 2085, ad: '2028-05-14' },
+    { m: 'Ashar', y: 2085, ad: '2028-06-15' },
+    { m: 'Shrawan', y: 2085, ad: '2028-07-16' },
+    { m: 'Bhadra', y: 2085, ad: '2028-08-17' },
+    { m: 'Ashoj', y: 2085, ad: '2028-09-16' },
+    { m: 'Kartik', y: 2085, ad: '2028-10-17' },
+    { m: 'Mangsir', y: 2085, ad: '2028-11-16' },
+    { m: 'Poush', y: 2085, ad: '2028-12-16' },
+    { m: 'Magh', y: 2085, ad: '2029-01-14' },
+    { m: 'Falgun', y: 2085, ad: '2029-02-13' },
+    { m: 'Chaitra', y: 2085, ad: '2029-03-15' },
+    { m: 'Baisakh', y: 2086, ad: '2029-04-14' },
+    { m: 'Jestha', y: 2086, ad: '2029-05-14' },
+    { m: 'Ashar', y: 2086, ad: '2029-06-15' },
+    { m: 'Shrawan', y: 2086, ad: '2029-07-16' },
+    { m: 'Bhadra', y: 2086, ad: '2029-08-17' },
+    { m: 'Ashoj', y: 2086, ad: '2029-09-17' },
+    { m: 'Kartik', y: 2086, ad: '2029-10-17' },
+    { m: 'Mangsir', y: 2086, ad: '2029-11-16' }
+  ];
+
+  // Local midnight of a 'YYYY-MM-DD' string. Deliberately NOT Date.parse():
+  // that reads a bare ISO date as UTC, which in Nepal (+05:45) lands the
+  // room on the evening before and can flip a pin a day early.
+  KK.bsTs = function(iso) {
+    var p = String(iso).split('-');
+    return new Date(+p[0], +p[1] - 1, +p[2], 0, 0, 0, 0).getTime();
   };
+
+  // Which Nepali month does this moment fall in? Used for the badge, so a
+  // room reads "Free from Kartik 2083" rather than "26 Nov 2026" — the
+  // month name is what a student in Butwal actually plans around.
+  // Falls back to the English date if the timestamp predates the table or
+  // runs off its end, so a badge never renders blank.
+  KK.bsLabel = function(ts) {
+    var t = Number(ts);
+    if (!t || isNaN(t)) { return ''; }
+    for (var i = 0; i < KK.bsMonths.length; i++) {
+      var startTs = KK.bsTs(KK.bsMonths[i].ad);
+      if (startTs > t) { break; }
+      // The month must actually CONTAIN the moment. Taking the last entry
+      // that merely starts before it would label a date in 2099 with the
+      // final row of the table, inventing a month we have no data for.
+      var next = KK.bsMonths[i + 1];
+      var endTs = next ? KK.bsTs(next.ad) : startTs + 32 * 86400000;
+      if (t < endTs) { return KK.bsMonths[i].m + ' ' + KK.bsMonths[i].y; }
+    }
+    return new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  // The next `count` Nepali months that have not started yet. `from` is
+  // injectable so tests can pin the clock.
+  KK.bsUpcoming = function(count, from) {
+    var now = (from || new Date()).getTime();
+    var out = [];
+    for (var i = 0; i < KK.bsMonths.length && out.length < (count || 8); i++) {
+      var ts = KK.bsTs(KK.bsMonths[i].ad);
+      if (ts > now) { out.push({ m: KK.bsMonths[i].m, y: KK.bsMonths[i].y, ad: KK.bsMonths[i].ad, ts: ts }); }
+    }
+    return out;
+  };
+
+  // ---- Availability badge -------------------------------------------------
+  // Pure decision used by the detail page badge (and tests).
+  //
+  // free_state is AUTHORITATIVE and must be tested BEFORE free_ts. The
+  // students who post rooms are the ones about to leave, and they do not
+  // know their exam date — so "ask" is a real answer, stored with no
+  // timestamp at all. Number('') is 0 and 0 <= now, so checking free_ts
+  // first would quietly report every "ask" room as available now, which is
+  // the exact 20-minute wasted walk this whole field exists to prevent.
+  //
+  // Places saved before this feature carry no free_state. If such a place
+  // has a usable free_ts we trust it (the poster really did pick a date);
+  // if it has neither, we know nothing about it and say so.
+  KK.availability = function(free_ts, now, free_state) {
+    now = now || Date.now();
+
+    if (free_state === 'ask') { return { state: 'ask', label: '' }; }
+    if (free_state === 'now') { return { state: 'now', label: '' }; }
+
+    var ts = Number(free_ts);
+    var usable = ts && !isNaN(ts);
+
+    if (!usable) {
+      // No date and no explicit answer: only legacy rows land here.
+      return free_state === 'date' ?
+        { state: 'ask', label: '' } :
+        { state: KK.availability.LEGACY_EMPTY, label: '' };
+    }
+    if (ts <= now) { return { state: 'now', label: '' }; }
+    return { state: 'later', label: KK.bsLabel(ts) };
+  };
+
+  // A legacy place with no answer at all tells us nothing, so it fails
+  // toward "go ask" rather than toward "walk across town".
+  KK.availability.LEGACY_EMPTY = 'ask';
 
   // ---- Directions logic ---------------------------------------------------
   // Pure decisions for the routing feature (map-view.js reads these): which
@@ -124,11 +245,8 @@
   // shortcut. Places saved before this feature carry no role, so they keep
   // a neutral "Contact" label — same information as before.
   KK.contact = {
-    esc: function(s) {
-      return String(s).replace(/[&<>"']/g, function(c) {
-        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-      });
-    },
+    // Kept as an alias so existing callers and tests are undisturbed.
+    esc: function(s) { return KK.esc(s); },
     roleLabel: function(role) {
       if (role === 'owner') { return 'Owner'; }
       if (role === 'other') { return 'Contact person'; }
@@ -151,11 +269,24 @@
   };
 
   if (window.Handlebars) {
-    window.Handlebars.registerHelper('free_badge', function(free_ts) {
-      var a = KK.availability(free_ts);
-      var html = a.state === 'now' ?
-        '<span class="free-badge free-badge-now">Available now</span>' :
-        '<span class="free-badge free-badge-later">Not available — free from ' + a.label + '</span>';
+    // Called as {{ free_badge free_ts free_state }}. Handlebars always
+    // appends its own options object, so when a template passes only one
+    // argument free_state arrives as that object — ignore anything that is
+    // not a string rather than letting it masquerade as a state.
+    window.Handlebars.registerHelper('free_badge', function(free_ts, free_state) {
+      var state = typeof free_state === 'string' ? free_state : undefined;
+      var a = KK.availability(free_ts, null, state);
+      var html;
+      if (a.state === 'now') {
+        html = '<span class="free-badge free-badge-now">Available now</span>';
+      } else if (a.state === 'ask') {
+        // Deliberately not "unknown" or "no date": it states the fact the
+        // poster actually verified with their own eyes, and tells the
+        // reader what to do about it.
+        html = '<span class="free-badge free-badge-ask">Ask — someone still lives here</span>';
+      } else {
+        html = '<span class="free-badge free-badge-later">Free from ' + a.label + '</span>';
+      }
       return new window.Handlebars.SafeString(html);
     });
     window.Handlebars.registerHelper('contact_block', function(number, role) {
@@ -748,9 +879,14 @@
   // marker icons.
   KK.legend = {
     html: function() {
+      // "Free later" rather than "Not available": a parent reads "not
+      // available" as gone and stops looking. The blue row exists because
+      // green used to mean both "this room is empty" and "nobody answered
+      // the question", which is the same pixel for two different facts.
       return '<div class="kk-legend">' +
-        '<div class="kk-legend-row"><span class="kk-legend-dot kk-legend-dot-free"></span>Available</div>' +
-        '<div class="kk-legend-row"><span class="kk-legend-dot kk-legend-dot-taken"></span>Not available</div>' +
+        '<div class="kk-legend-row"><span class="kk-legend-dot kk-legend-dot-free"></span>Available now</div>' +
+        '<div class="kk-legend-row"><span class="kk-legend-dot kk-legend-dot-taken"></span>Free later</div>' +
+        '<div class="kk-legend-row"><span class="kk-legend-dot kk-legend-dot-ask"></span>Ask — someone lives here</div>' +
         '</div>';
     }
   };
@@ -766,119 +902,129 @@
     }, 0);
   });
 
-  // ---- "When will this room be free?" picker ------------------------------
-  // Three choices (Now / Month / Year), 1-4 chips or a typed number, and a
-  // live computed date. The form stores free_from (YYYY-MM-DD, for humans
-  // and the detail page) and free_ts (epoch ms, for the map color rules).
-  // "Now" stores empty strings, which the color rules read as available.
+  // ---- "When will the room be free?" picker -------------------------------
+  // Three choices in one row: Free now / Not sure yet / Pick a month.
+  //
+  // "Not sure yet" is the DEFAULT, and it is a real answer rather than a
+  // failure to answer. The people who post rooms are the students about to
+  // leave them, and they genuinely do not know when they go: exam routines
+  // in Nepal are published a few weeks out and move, results take months,
+  // and health students stay on afterwards for the licence exam. Asking
+  // them to turn all that into a number was asking for a guess, and a guess
+  // on this field sends someone walking to a room that is already taken.
+  //
+  // The form stores three values: free_state (now | ask | date) which is
+  // authoritative, free_from (YYYY-MM-DD) for humans, and free_ts (epoch
+  // ms) for the map colour rules. free_ts is strictly numeric-or-empty —
+  // the state never rides inside it.
   KK.freeDate = {
-    MAX: { month: 11, year: 10 },
-
-    clamp: function(kind, n) {
-      n = parseInt(n, 10);
-      if (isNaN(n) || n < 1) { return 1; }
-      return Math.min(n, KK.freeDate.MAX[kind] || 1);
-    },
-
-    // Pure: compute the free-from date for a choice. `from` is injectable
-    // so tests can pin the current date.
-    compute: function(kind, n, from) {
-      if (kind !== 'month' && kind !== 'year') {
-        return { freeFrom: '', freeTs: '', label: '', n: 0 };
+    // Pure: what to store for a chosen answer. `choice` is 'now', 'ask',
+    // or one of the entries from KK.bsUpcoming().
+    compute: function(choice) {
+      if (choice === 'ask') {
+        // No timestamp at all. There is nothing to flip, and a month
+        // nobody chose must never turn a pin green on its own.
+        return { state: 'ask', freeFrom: '', freeTs: '', label: '' };
       }
-      n = KK.freeDate.clamp(kind, n);
-      var src = new Date((from || new Date()).getTime());
-      var day = src.getDate();
-      var d = new Date(src.getTime());
-      // Move the month (or year) with the day parked on the 1st, then put
-      // the day back, capped to the length of the month we land in.
-      // Otherwise 31 Jan + 1 month rolls over into 3 March — February
-      // skipped entirely, and the picker's own "today + 1 month" sentence
-      // contradicting the date printed beside it.
-      d.setDate(1);
-      if (kind === 'month') { d.setMonth(d.getMonth() + n); }
-      else { d.setFullYear(d.getFullYear() + n); }
-      var lastDayOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-      d.setDate(Math.min(day, lastDayOfMonth));
-      // The room is free FROM that day, so the pin should turn green at the
-      // start of it — not at whatever hour the landlord happened to post.
-      d.setHours(0, 0, 0, 0);
-      var pad = function(x) { return (x < 10 ? '0' : '') + x; };
+      if (!choice || choice === 'now') {
+        return { state: 'now', freeFrom: '', freeTs: '', label: '' };
+      }
       return {
-        freeFrom: d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()),
-        freeTs: String(d.getTime()),
-        label: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-        n: n
+        state: 'date',
+        freeFrom: choice.ad,
+        freeTs: String(KK.bsTs(choice.ad)),
+        label: choice.m + ' ' + choice.y
       };
     }
   };
 
+  // Fill the month row with the next Nepali months. Rendered from the BS
+  // table rather than the device clock, because BS month lengths vary year
+  // to year and cannot be derived.
+  function renderMonthChips($picker) {
+    var $wrap = $picker.find('.free-month-chips');
+    if (!$wrap.length || $wrap.children().length) { return; }
+    var months = KK.bsUpcoming(8);
+    var html = months.map(function(mo, i) {
+      return '<button type="button" class="btn free-month" data-i="' + i + '">' +
+        KK.esc(mo.m) + '</button>';
+    }).join('');
+    $wrap.html(html).data('months', months);
+  }
+
+  function writeFree($picker, result) {
+    $picker.find('input[name="free_state"]').val(result.state);
+    $picker.find('input[name="free_from"]').val(result.freeFrom);
+    $picker.find('input[name="free_ts"]').val(result.freeTs);
+  }
+
   function refreshFreePicker($picker) {
-    var kind = $picker.find('.free-kind.is-active').data('kind') || 'now';
-    var $count = $picker.find('.free-picker-count');
+    var kind = $picker.find('.free-kind.is-active').data('kind') || 'ask';
+    var $months = $picker.find('.free-picker-months');
     var $date = $picker.find('.free-picker-date');
     var $preview = $picker.find('.free-picker-preview');
-    var $custom = $picker.find('.free-count-custom');
+    var $note = $picker.find('.free-picker-note');
 
     if (kind === 'now') {
-      $count.addClass('is-hidden');
+      $months.addClass('is-hidden');
       $date.addClass('is-hidden');
-      $picker.find('input[name="free_from"]').val('');
-      $picker.find('input[name="free_ts"]').val('');
+      $note.addClass('is-hidden');
+      writeFree($picker, KK.freeDate.compute('now'));
       $preview.html('Students will see: <span class="free-badge free-badge-now">Available now</span>');
       return;
     }
 
-    var unit = kind === 'month' ? 'month' : 'year';
-    var typed = $.trim($custom.val());
-    var n = typed !== '' ? typed : ($picker.find('.free-count.is-active').data('n') || 1);
-    var result = KK.freeDate.compute(kind, n);
-    var units = result.n === 1 ? unit : unit + 's';
+    if (kind === 'ask') {
+      $months.addClass('is-hidden');
+      $date.addClass('is-hidden');
+      writeFree($picker, KK.freeDate.compute('ask'));
+      $preview.html('Students will see: <span class="free-badge free-badge-ask">Ask — someone still lives here</span>');
+      // Says out loud that the room is still listed. Without this the
+      // honest answer feels like the one that gets you nothing.
+      $note.removeClass('is-hidden');
+      return;
+    }
 
-    $count.removeClass('is-hidden');
-    $count.find('.free-picker-count-label').text('How many ' + unit + 's? (1–' + KK.freeDate.MAX[kind] + ')');
-    $custom.attr('max', KK.freeDate.MAX[kind]);
-    $date.removeClass('is-hidden').text('Free on ' + result.label + ' (today + ' + result.n + ' ' + units + ')');
-    $preview.html('Students will see: <span class="free-badge free-badge-later">Free from ' + result.label + '</span>');
-    $picker.find('input[name="free_from"]').val(result.freeFrom);
-    $picker.find('input[name="free_ts"]').val(result.freeTs);
+    renderMonthChips($picker);
+    $months.removeClass('is-hidden');
+    $note.addClass('is-hidden');
+
+    var months = $picker.find('.free-month-chips').data('months') || [];
+    var $active = $picker.find('.free-month.is-active');
+    if (!$active.length) {
+      // Month mode with nothing picked yet is not an answer, so hold the
+      // stored value at "ask" until they actually choose one.
+      $date.addClass('is-hidden');
+      writeFree($picker, KK.freeDate.compute('ask'));
+      $preview.html('Students will see: <span class="free-badge free-badge-ask">Ask — someone still lives here</span>');
+      return;
+    }
+
+    var chosen = months[Number($active.data('i'))];
+    var result = KK.freeDate.compute(chosen);
+    $date.removeClass('is-hidden').text('Free from the start of ' + result.label + '.');
+    $preview.html('Students will see: <span class="free-badge free-badge-later">Free from ' +
+      KK.esc(result.label) + '</span>');
+    writeFree($picker, result);
   }
 
   $(document).on('click', '.free-picker .free-kind', function() {
     var $picker = $(this).closest('.free-picker');
     $picker.find('.free-kind').removeClass('is-active');
     $(this).addClass('is-active');
-    // Reset the number to a fresh default when switching unit.
-    $picker.find('.free-count').removeClass('is-active').first().addClass('is-active');
-    $picker.find('.free-count-custom').val('');
+    // Switching away from the month row clears the month, so the previous
+    // choice cannot linger under a different answer.
+    if ($(this).data('kind') !== 'date') {
+      $picker.find('.free-month').removeClass('is-active');
+    }
     refreshFreePicker($picker);
   });
 
-  $(document).on('click', '.free-picker .free-count', function() {
+  $(document).on('click', '.free-picker .free-month', function() {
     var $picker = $(this).closest('.free-picker');
-    $picker.find('.free-count').removeClass('is-active');
+    $picker.find('.free-month').removeClass('is-active');
     $(this).addClass('is-active');
-    $picker.find('.free-count-custom').val('');
     refreshFreePicker($picker);
-  });
-
-  $(document).on('input change', '.free-picker .free-count-custom', function() {
-    var $picker = $(this).closest('.free-picker');
-    if ($.trim($(this).val()) !== '') {
-      $picker.find('.free-count').removeClass('is-active');
-    }
-    refreshFreePicker($picker);
-  });
-
-  // Snap an out-of-range typed number back into range when leaving the field.
-  $(document).on('blur', '.free-picker .free-count-custom', function() {
-    var $picker = $(this).closest('.free-picker');
-    var kind = $picker.find('.free-kind.is-active').data('kind');
-    var raw = $.trim($(this).val());
-    if (raw !== '' && (kind === 'month' || kind === 'year')) {
-      $(this).val(KK.freeDate.clamp(kind, raw));
-      refreshFreePicker($picker);
-    }
   });
 
   // The sign-in panel form posts to Django, which needs the CSRF token the

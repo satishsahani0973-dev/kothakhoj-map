@@ -25,35 +25,43 @@
             <span class="form-step-title">{{#_}}The room{{/_}}</span>
           </div>
 
-          {{> form-field-set form_config=place_config }}
-
+          {{!-- This question sits ABOVE the field set on purpose. It used to
+                be the last thing on the form, below the photo upload, so a
+                one-handed poster had to scroll past a file picker to reach
+                it. It is also the question most likely to be answered
+                wrongly, so it gets asked while they are still paying
+                attention. --}}
           <div class="free-picker">
-            <p class="free-picker-label">{{#_}}When will this room be free?{{/_}}</p>
+            <p class="free-picker-label">{{#_}}When will the room be free?{{/_}}</p>
+            <p class="free-picker-help">{{#_}}Don't know yet? That is fine. Leave it as it is.{{/_}}</p>
 
-            <div class="free-picker-kind" role="group" aria-label="When will this room be free?">
-              <button type="button" class="btn free-kind is-active" data-kind="now">{{#_}}Now{{/_}}</button>
-              <button type="button" class="btn free-kind" data-kind="month">{{#_}}Month{{/_}}</button>
-              <button type="button" class="btn free-kind" data-kind="year">{{#_}}Year{{/_}}</button>
+            {{!-- "Not sure yet" ships pre-selected here AND as the value of
+                  the free_state input below, so the two agree with no
+                  JavaScript running on render. Nothing has to fire for the
+                  form to be correct. --}}
+            <div class="free-picker-kind" role="group" aria-label="When will the room be free?">
+              <button type="button" class="btn free-kind" data-kind="now">{{#_}}Free now{{/_}}</button>
+              <button type="button" class="btn free-kind is-active" data-kind="ask">{{#_}}Not sure yet{{/_}}</button>
+              <button type="button" class="btn free-kind" data-kind="date">{{#_}}Pick a month{{/_}}</button>
             </div>
 
-            <div class="free-picker-count is-hidden">
-              <p class="free-picker-count-label"></p>
-              <div class="free-count-chips">
-                <button type="button" class="btn free-count" data-n="1">1</button>
-                <button type="button" class="btn free-count" data-n="2">2</button>
-                <button type="button" class="btn free-count" data-n="3">3</button>
-                <button type="button" class="btn free-count" data-n="4">4</button>
-                <span class="free-or">{{#_}}or type{{/_}}</span>
-                <input type="number" class="free-count-custom" min="1" step="1" inputmode="numeric" aria-label="Type how many">
-              </div>
+            <div class="free-picker-months is-hidden">
+              <p class="free-picker-months-label">{{#_}}Which month?{{/_}}</p>
+              {{!-- Chips are written in by custom.js from the Bikram Sambat
+                    table; month lengths vary by year and cannot be derived. --}}
+              <div class="free-month-chips"></div>
             </div>
 
             <p class="free-picker-date is-hidden" aria-live="polite"></p>
-            <p class="free-picker-preview" aria-live="polite">{{#_}}Students will see:{{/_}} <span class="free-badge free-badge-now">{{#_}}Available now{{/_}}</span></p>
+            <p class="free-picker-preview" aria-live="polite">{{#_}}Students will see:{{/_}} <span class="free-badge free-badge-ask">{{#_}}Ask — someone still lives here{{/_}}</span></p>
+            <p class="free-picker-note">{{#_}}Students will call and ask. Your room still shows on the map.{{/_}}</p>
 
+            <input type="hidden" name="free_state" value="ask">
             <input type="hidden" name="free_from" value="">
             <input type="hidden" name="free_ts" value="">
           </div>
+
+          {{> form-field-set form_config=place_config }}
 
           <p class="terms-consent" style="font-size: 12px; color: #666; margin: 8px 0;">
             {{#_}}By adding a place you agree to the{{/_}}

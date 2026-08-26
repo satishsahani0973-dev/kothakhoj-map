@@ -51,51 +51,146 @@ check('signed-in user -> no gate', () => assert.strictEqual(KK.gate.shouldShow({
 check('choice already made -> no gate', () => assert.strictEqual(KK.gate.shouldShow(null, true, '/'), false));
 check('shared place link -> no gate', () => assert.strictEqual(KK.gate.shouldShow(null, false, '/place/123'), false));
 
+// ---- Nepali month table ----
+console.log('bsMonths');
+check('table is sorted and every entry parses', () => {
+  let prev = 0;
+  KK.bsMonths.forEach(mo => {
+    const ts = KK.bsTs(mo.ad);
+    assert.ok(!isNaN(ts), mo.ad + ' did not parse');
+    assert.ok(ts > prev, 'table out of order at ' + mo.ad);
+    prev = ts;
+  });
+});
+check('bsTs is LOCAL midnight, not UTC', () => {
+  // Date.parse('2026-10-18') would be UTC midnight, which in Nepal (+05:45)
+  // is the evening of the 17th and would flip a pin a day early.
+  const d = new Date(KK.bsTs('2026-10-18'));
+  assert.strictEqual(d.getFullYear(), 2026);
+  assert.strictEqual(d.getMonth(), 9);
+  assert.strictEqual(d.getDate(), 18);
+  assert.strictEqual(d.getHours(), 0);
+});
+check('cross-checked against a published festival date', () => {
+  // Ghatasthapana 2083 = Ashoj 25 = Sunday 11 Oct 2026 (published).
+  // Ashoj 1 must therefore be 24 days earlier, on 17 Sep 2026.
+  const ashoj = KK.bsMonths.find(m => m.m === 'Ashoj' && m.y === 2083);
+  assert.strictEqual(ashoj.ad, '2026-09-17');
+  const day25 = new Date(KK.bsTs(ashoj.ad) + 24 * 86400000);
+  assert.strictEqual(day25.getDate(), 11);
+  assert.strictEqual(day25.getMonth(), 9);
+  assert.strictEqual(day25.getDay(), 0); // Sunday
+});
+check('bsUpcoming returns only months still ahead', () => {
+  const from = new Date(2026, 9, 20); // 20 Oct 2026, inside Kartik 2083
+  const up = KK.bsUpcoming(4, from);
+  assert.strictEqual(up.length, 4);
+  assert.strictEqual(up[0].m, 'Mangsir');
+  up.forEach(mo => assert.ok(mo.ts > from.getTime()));
+});
+check('bsLabel names the month a moment falls INSIDE', () => {
+  // Mid-Kartik, not its first day - must still read Kartik.
+  assert.strictEqual(KK.bsLabel(KK.bsTs('2026-10-18') + 5 * 86400000), 'Kartik 2083');
+  assert.strictEqual(KK.bsLabel(KK.bsTs('2026-09-17')), 'Ashoj 2083');
+});
+check('bsLabel falls back to an English date off the end of the table', () => {
+  const far = new Date(2099, 0, 1).getTime();
+  const label = KK.bsLabel(far);
+  assert.ok(label.includes('2099'), 'expected an English fallback, got ' + label);
+});
+check('bsLabel never renders blank for junk', () => {
+  assert.strictEqual(KK.bsLabel(''), '');
+  assert.strictEqual(KK.bsLabel('abc'), '');
+});
+
 // ---- freeDate ----
 console.log('freeDate');
-const today = new Date(2026, 7, 8); // 8 Aug 2026, pinned so specs cannot rot
-check('now -> empty values', () => {
-  const r = KK.freeDate.compute('now', 3, today);
+check('now -> state now, no timestamp', () => {
+  const r = KK.freeDate.compute('now');
+  assert.strictEqual(r.state, 'now');
   assert.strictEqual(r.freeFrom, ''); assert.strictEqual(r.freeTs, '');
 });
-check('3 months -> 2026-11-08', () => assert.strictEqual(KK.freeDate.compute('month', 3, today).freeFrom, '2026-11-08'));
-check('2 years -> 2028-08-08', () => assert.strictEqual(KK.freeDate.compute('year', 2, today).freeFrom, '2028-08-08'));
-check('typed 7 months -> 2027-03-08', () => assert.strictEqual(KK.freeDate.compute('month', '7', today).freeFrom, '2027-03-08'));
-check('freeTs matches freeFrom date', () => {
-  const r = KK.freeDate.compute('month', 3, today);
-  assert.strictEqual(Number(r.freeTs), new Date(2026, 10, 8).getTime());
+check('ask -> state ask, and NO timestamp to flip', () => {
+  const r = KK.freeDate.compute('ask');
+  assert.strictEqual(r.state, 'ask');
+  assert.strictEqual(r.freeFrom, ''); assert.strictEqual(r.freeTs, '');
 });
-check('clamp month 99 -> 11', () => assert.strictEqual(KK.freeDate.clamp('month', '99'), 11));
-check('clamp year 99 -> 10', () => assert.strictEqual(KK.freeDate.clamp('year', '99'), 10));
-check('clamp 0/-5/abc -> 1', () => {
-  assert.strictEqual(KK.freeDate.clamp('month', '0'), 1);
-  assert.strictEqual(KK.freeDate.clamp('month', '-5'), 1);
-  assert.strictEqual(KK.freeDate.clamp('month', 'abc'), 1);
+check('a chosen month -> state date, ISO date, matching ts', () => {
+  const kartik = KK.bsMonths.find(m => m.m === 'Kartik' && m.y === 2083);
+  const r = KK.freeDate.compute(kartik);
+  assert.strictEqual(r.state, 'date');
+  assert.strictEqual(r.freeFrom, '2026-10-18');
+  assert.strictEqual(Number(r.freeTs), new Date(2026, 9, 18).getTime());
+  assert.strictEqual(r.label, 'Kartik 2083');
+});
+check('free_ts is ALWAYS numeric-or-empty, never a sentinel', () => {
+  // A string like "unknown" in free_ts would be read by Number() as NaN in
+  // one place and slip through a `> Date.now()` test in another. The state
+  // lives in its own field precisely so this one never carries a non-number.
+  ['now', 'ask'].forEach(c => assert.strictEqual(KK.freeDate.compute(c).freeTs, ''));
+  const r = KK.freeDate.compute(KK.bsMonths[1]);
+  assert.ok(/^\d+$/.test(r.freeTs), 'freeTs was not a plain number: ' + r.freeTs);
 });
 
 // ---- availability ----
 console.log('availability');
 const now = new Date(2026, 7, 8).getTime();
-check('missing/empty/undefined-string -> now', () => {
-  assert.strictEqual(KK.availability(undefined, now).state, 'now');
-  assert.strictEqual(KK.availability('', now).state, 'now');
-  assert.strictEqual(KK.availability('undefined', now).state, 'now');
+check('free_state is read BEFORE free_ts', () => {
+  // The whole point. Number('') is 0 and 0 <= now, so a free_ts-first
+  // implementation reports every "ask" room as available now - the exact
+  // wasted 20-minute walk this field exists to prevent.
+  assert.strictEqual(KK.availability('', now, 'ask').state, 'ask');
+  assert.strictEqual(KK.availability(undefined, now, 'ask').state, 'ask');
+  assert.strictEqual(KK.availability('0', now, 'ask').state, 'ask');
 });
-check('past ts -> now', () => assert.strictEqual(KK.availability(String(now - 1000), now).state, 'now'));
-check('future ts -> later with label', () => {
-  const a = KK.availability(String(new Date(2026, 10, 8).getTime()), now);
-  assert.strictEqual(a.state, 'later'); assert.ok(a.label.includes('2026'));
+check('explicit now -> now', () => {
+  assert.strictEqual(KK.availability('', now, 'now').state, 'now');
+});
+check('a future date -> later, labelled with the Nepali month', () => {
+  const a = KK.availability(String(KK.bsTs('2026-10-18')), now, 'date');
+  assert.strictEqual(a.state, 'later');
+  assert.strictEqual(a.label, 'Kartik 2083');
+});
+check('the date has passed -> now', () => {
+  assert.strictEqual(KK.availability(String(now - 1000), now, 'date').state, 'now');
+});
+check('state date but no timestamp -> ask, never green', () => {
+  assert.strictEqual(KK.availability('', now, 'date').state, 'ask');
+});
+check('legacy row with a usable date is still trusted', () => {
+  // No free_state at all: if the poster really did pick a date, keep it.
+  assert.strictEqual(KK.availability(String(KK.bsTs('2026-10-18')), now).state, 'later');
+  assert.strictEqual(KK.availability(String(now - 1000), now).state, 'now');
+});
+check('legacy row with nothing at all -> ask, not green', () => {
+  // We know nothing about it, so it fails toward "go and ask" rather than
+  // toward "walk across town".
+  assert.strictEqual(KK.availability(undefined, now).state, 'ask');
+  assert.strictEqual(KK.availability('', now).state, 'ask');
+  assert.strictEqual(KK.availability('undefined', now).state, 'ask');
 });
 
 // ---- badge helper ----
 console.log('free_badge helper');
-check('green for legacy place', () => {
-  const html = String(Handlebars.helpers.free_badge(undefined));
+check('explicit now -> green badge', () => {
+  const html = String(Handlebars.helpers.free_badge('', 'now'));
   assert.ok(html.includes('free-badge-now') && html.includes('Available now'));
 });
-check('orange for future date', () => {
-  const html = String(Handlebars.helpers.free_badge(String(Date.now() + 86400000 * 90)));
-  assert.ok(html.includes('free-badge-later') && html.includes('free from'));
+check('ask -> blue badge that tells the reader what to do', () => {
+  const html = String(Handlebars.helpers.free_badge('', 'ask'));
+  assert.ok(html.includes('free-badge-ask'), html);
+  assert.ok(html.includes('Ask'), html);
+});
+check('future date -> orange badge naming the Nepali month', () => {
+  const html = String(Handlebars.helpers.free_badge(String(KK.bsTs('2029-04-14')), 'date'));
+  assert.ok(html.includes('free-badge-later'), html);
+  assert.ok(html.includes('Baisakh 2086'), html);
+});
+check('called with one argument, Handlebars options is not read as a state', () => {
+  // Handlebars always appends its own options object. A template passing
+  // only free_ts must not have that object treated as a free_state.
+  const html = String(Handlebars.helpers.free_badge(String(KK.bsTs('2029-04-14')), { hash: {} }));
+  assert.ok(html.includes('free-badge-later'), html);
 });
 
 // ---- location engine decisions ----
@@ -186,7 +281,7 @@ const rules = [];
 for (const m of anchorBlock.matchAll(/- condition: '([^']+)'[\s\S]*?iconUrl: (\S+)/g)) {
   rules.push({ condition: m[1], icon: m[2] });
 }
-check('four rules extracted from config', () => assert.strictEqual(rules.length, 4));
+check('six rules extracted from config', () => assert.strictEqual(rules.length, 6));
 
 // Reimplementation of L.Argo.t: replace {{ token }} with the property value;
 // a missing property substitutes the string "undefined".
@@ -203,19 +298,59 @@ function firstIcon(props) {
   }
   return '';
 }
+const FUTURE = String(Date.now() + 1000000);
+const PAST = String(Date.now() - 1000000);
 
-check('legacy place (no free_ts) -> green dot', () =>
-  assert.ok(firstIcon({ layer: { focused: false } }).includes('dot-4bbd45')));
-check('empty free_ts -> green dot', () =>
-  assert.ok(firstIcon({ free_ts: '', layer: { focused: false } }).includes('dot-4bbd45')));
-check('future free_ts -> orange dot', () =>
-  assert.ok(firstIcon({ free_ts: String(Date.now() + 1000000), layer: { focused: false } }).includes('dot-f95016')));
-check('past free_ts -> green dot (auto flip)', () =>
-  assert.ok(firstIcon({ free_ts: String(Date.now() - 1000000), layer: { focused: false } }).includes('dot-4bbd45')));
-check('focused + future -> big orange marker', () =>
-  assert.ok(firstIcon({ free_ts: String(Date.now() + 1000000), layer: { focused: true } }).includes('marker-f95016')));
-check('focused + available -> big green marker', () =>
-  assert.ok(firstIcon({ layer: { focused: true } }).includes('marker-4bbd45')));
+// The regression this whole feature turns on.
+check('ask + empty free_ts -> BLUE dot, never green', () =>
+  assert.ok(firstIcon({ free_state: 'ask', free_ts: '', layer: { focused: false } }).includes('dot-0d85e9'),
+    'Number("") is 0 and 0 <= now, so an unguarded rule paints every ask pin green'));
+check('ask ignores a stray timestamp too', () =>
+  assert.ok(firstIcon({ free_state: 'ask', free_ts: FUTURE, layer: { focused: false } }).includes('dot-0d85e9')));
+
+check('now -> green dot', () =>
+  assert.ok(firstIcon({ free_state: 'now', free_ts: '', layer: { focused: false } }).includes('dot-4bbd45')));
+check('date + future -> orange dot', () =>
+  assert.ok(firstIcon({ free_state: 'date', free_ts: FUTURE, layer: { focused: false } }).includes('dot-f95016')));
+check('date + past -> green dot (auto flip)', () =>
+  assert.ok(firstIcon({ free_state: 'date', free_ts: PAST, layer: { focused: false } }).includes('dot-4bbd45')));
+check('date but no timestamp -> blue, never green', () =>
+  assert.ok(firstIcon({ free_state: 'date', free_ts: '', layer: { focused: false } }).includes('dot-0d85e9')));
+
+// Places saved before this feature carry no free_state at all.
+check('legacy with nothing -> blue dot (catch-all fails safe)', () =>
+  assert.ok(firstIcon({ layer: { focused: false } }).includes('dot-0d85e9')));
+check('legacy with a real future date is still trusted -> orange', () =>
+  assert.ok(firstIcon({ free_ts: FUTURE, layer: { focused: false } }).includes('dot-f95016')));
+check('legacy with a passed date -> green', () =>
+  assert.ok(firstIcon({ free_ts: PAST, layer: { focused: false } }).includes('dot-4bbd45')));
+
+check('focused + date + future -> big orange marker', () =>
+  assert.ok(firstIcon({ free_state: 'date', free_ts: FUTURE, layer: { focused: true } }).includes('marker-f95016')));
+check('focused + now -> big green marker', () =>
+  assert.ok(firstIcon({ free_state: 'now', free_ts: '', layer: { focused: true } }).includes('marker-4bbd45')));
+check('focused + ask -> big blue marker', () =>
+  assert.ok(firstIcon({ free_state: 'ask', free_ts: '', layer: { focused: true } }).includes('marker-0d85e9')));
+check('focused rules come before the unfocused ones', () => {
+  // A bare '{{layer.focused}} === true' placed too early would swallow
+  // every focused pin and paint it blue.
+  const icon = firstIcon({ free_state: 'now', free_ts: '', layer: { focused: true } });
+  assert.ok(!icon.includes('0d85e9'), 'focused green pin was swallowed by the blue focused rule');
+});
+
+check('every free_state comparison in config is QUOTED', () => {
+  // L.Argo.t splices the raw value in and the result is eval'd with no
+  // try/catch, so a bare {{free_state}} becomes an identifier and throws
+  // out of initLayer - the pin then never renders at all.
+  rules.forEach(r => {
+    assert.ok(!/[^"]\{\{free_state\}\}/.test(r.condition),
+      'unquoted free_state in: ' + r.condition);
+  });
+});
+check('config conditions never throw on a place with no data at all', () => {
+  assert.doesNotThrow(() => firstIcon({ layer: { focused: false } }));
+  assert.doesNotThrow(() => firstIcon({ layer: { focused: true } }));
+});
 
 // ---- directions logic ----
 console.log('route (directions logic)');
@@ -369,33 +504,46 @@ check('empty alias fragments are dropped, not searched', () => {
   assert.deepStrictEqual(terms, ['kalika', 'kalika college']);
 });
 
-// ---- month-end dates (bug: 31 Jan + 1 month landed on 3 Mar) ----
-console.log('freeDate month-end clamping');
-check('31 Jan + 1 month -> 28 Feb, not 3 Mar', () =>
-  assert.strictEqual(KK.freeDate.compute('month', 1, new Date(2026, 0, 31)).freeFrom, '2026-02-28'));
-check('31 Aug + 1 month -> 30 Sep', () =>
-  assert.strictEqual(KK.freeDate.compute('month', 1, new Date(2026, 7, 31)).freeFrom, '2026-09-30'));
-check('31 May + 1 month -> 30 Jun', () =>
-  assert.strictEqual(KK.freeDate.compute('month', 1, new Date(2026, 4, 31)).freeFrom, '2026-06-30'));
-check('29 Feb + 1 year -> 28 Feb (non-leap)', () =>
-  assert.strictEqual(KK.freeDate.compute('year', 1, new Date(2028, 1, 29)).freeFrom, '2029-02-28'));
-check('ordinary dates are untouched', () => {
-  assert.strictEqual(KK.freeDate.compute('month', 1, new Date(2026, 0, 15)).freeFrom, '2026-02-15');
-  assert.strictEqual(KK.freeDate.compute('month', 4, new Date(2026, 0, 10)).freeFrom, '2026-05-10');
-  assert.strictEqual(KK.freeDate.compute('year', 2, new Date(2026, 5, 9)).freeFrom, '2028-06-09');
+// ---- month-end dates ----
+// The old picker did calendar arithmetic (today + N months) and 31 Jan + 1
+// month landed on 3 March, skipping February. That whole class of bug is
+// now impossible: a room is always free from the FIRST day of a chosen
+// Nepali month, read from a table, so nothing is ever added to a date.
+console.log('freeDate month starts');
+check('every table entry is the 1st of its Nepali month, at local midnight', () => {
+  KK.bsMonths.slice(0, 12).forEach(mo => {
+    const d = new Date(KK.freeDate.compute(mo).freeTs * 1);
+    assert.strictEqual(d.getHours(), 0, mo.ad + ' is not at midnight');
+    assert.strictEqual(d.getMinutes(), 0);
+    assert.strictEqual(d.getSeconds(), 0);
+  });
 });
-check('free date starts at midnight, so the pin greens all day', () => {
-  const r = KK.freeDate.compute('month', 1, new Date(2026, 7, 24, 21, 30));
-  const d = new Date(Number(r.freeTs));
-  assert.strictEqual(d.getHours(), 0);
-  assert.strictEqual(d.getMinutes(), 0);
+check('no month arithmetic survives - compute takes a table entry, not a count', () => {
+  // Guards against someone reintroducing compute('month', n).
+  const r = KK.freeDate.compute('month', 1, new Date(2026, 0, 31));
+  assert.strictEqual(r.state, 'date',
+    'compute should treat a stray string as an object-less choice, not do arithmetic');
 });
-check('a room is green on the morning of its free date', () => {
-  // Posted 9pm on 24 Aug, free in 1 month -> 24 Sep. At 8am on 24 Sep the
-  // badge must read available; before the fix it stayed orange until 9pm.
-  const r = KK.freeDate.compute('month', 1, new Date(2026, 7, 24, 21, 0));
-  const morningOfFreeDay = new Date(2026, 8, 24, 8, 0).getTime();
-  assert.strictEqual(KK.availability(r.freeTs, morningOfFreeDay).state, 'now');
+check('a room is green from the first morning of its month', () => {
+  // The pin must flip at the start of the day, not at whatever hour the
+  // poster happened to open the form.
+  const kartik = KK.bsMonths.find(m => m.m === 'Kartik' && m.y === 2083);
+  const r = KK.freeDate.compute(kartik);
+  const morning = new Date(2026, 9, 18, 8, 0).getTime();
+  assert.strictEqual(KK.availability(r.freeTs, morning, 'date').state, 'now');
+});
+check('and still orange the evening before', () => {
+  const kartik = KK.bsMonths.find(m => m.m === 'Kartik' && m.y === 2083);
+  const r = KK.freeDate.compute(kartik);
+  const nightBefore = new Date(2026, 9, 17, 23, 30).getTime();
+  assert.strictEqual(KK.availability(r.freeTs, nightBefore, 'date').state, 'later');
+});
+check('an "ask" room NEVER flips on its own', () => {
+  // There is no timestamp, so there is nothing to expire. A month nobody
+  // chose must not turn a pin green years later.
+  const r = KK.freeDate.compute('ask');
+  const farFuture = new Date(2099, 0, 1).getTime();
+  assert.strictEqual(KK.availability(r.freeTs, farFuture, r.state).state, 'ask');
 });
 
 // ---- sign-in gate release (bug: Back button left the map blurred) ----
@@ -440,12 +588,22 @@ check('step distance: rubbish input does not print NaN', () =>
 
 // ---- availability legend ----
 console.log('legend');
-check('legend html has both stacked rows with matching dots', () => {
+check('legend has all three stacked rows with matching dots', () => {
   const html = KK.legend.html();
-  assert.ok(html.includes('Available'), 'green label');
-  assert.ok(html.includes('Not available'), 'orange label');
+  assert.ok(html.includes('Available now'), 'green label');
+  assert.ok(html.includes('Free later'), 'orange label');
+  assert.ok(html.includes('Ask'), 'blue label');
   assert.ok(html.includes('kk-legend-dot-free'), 'green dot class');
   assert.ok(html.includes('kk-legend-dot-taken'), 'orange dot class');
+  assert.ok(html.includes('kk-legend-dot-ask'), 'blue dot class');
+});
+check('legend does not say "Not available" - a parent reads that as gone', () =>
+  assert.ok(KK.legend.html().indexOf('Not available') === -1));
+check('every legend dot class is actually styled', () => {
+  const css = fs.readFileSync(path.join(FLAVOR, 'static/css/custom.css'), 'utf8');
+  ['kk-legend-dot-free', 'kk-legend-dot-taken', 'kk-legend-dot-ask'].forEach(cls => {
+    assert.ok(new RegExp('\\.' + cls + '\\s*\\{[^}]*background').test(css), cls + ' has no colour');
+  });
 });
 check('legend never uses the rejected word Occupied', () =>
   assert.ok(KK.legend.html().indexOf('Occupied') === -1));
@@ -478,8 +636,15 @@ check('directions class is added on start and cleared on stop', () => {
   assert.ok(/removeClass\('kk-directions'\)/.test(mv), 'cleared');
 });
 check('legend wording matches the detail badge family', () => {
-  const badge = String(Handlebars.helpers.free_badge(undefined));
-  assert.ok(badge.includes('Available'), 'badge and legend share wording');
+  // Each legend row must describe the same thing its badge does, or the
+  // colour key teaches the reader the wrong vocabulary.
+  const legend = KK.legend.html();
+  assert.ok(String(Handlebars.helpers.free_badge('', 'now')).includes('Available now') &&
+    legend.includes('Available now'), 'green wording');
+  assert.ok(String(Handlebars.helpers.free_badge('', 'ask')).includes('Ask') &&
+    legend.includes('Ask'), 'blue wording');
+  assert.ok(String(Handlebars.helpers.free_badge(String(KK.bsTs('2029-04-14')), 'date')).includes('Free from') &&
+    legend.includes('Free later'), 'orange wording');
 });
 
 // ---- owner contact ----
@@ -527,6 +692,46 @@ check('contact_block helper wraps blockHtml as SafeString', () => {
 
 // ---- config + template wiring ----
 console.log('config/template wiring');
+
+// ---- the free picker's safe default ----
+// This is the property the whole design rests on: a poster who scrolls
+// straight past must still produce an honest answer, with no JavaScript
+// having run. So the markup default and the hidden input must agree on
+// their own, without any render hook.
+const formHtml = fs.readFileSync(path.join(FLAVOR, 'jstemplates/place-form.html'), 'utf8');
+check('the hidden free_state ships as "ask"', () =>
+  assert.ok(/name="free_state"\s+value="ask"/.test(formHtml), 'default is not ask'));
+check('and the "Not sure yet" button ships pre-selected to match it', () => {
+  const askBtn = formHtml.match(/<button[^>]*data-kind="ask"[^>]*>/);
+  assert.ok(askBtn, 'no ask button');
+  assert.ok(askBtn[0].includes('is-active'), 'ask button is not the active one');
+});
+check('no OTHER kind button is also marked active', () => {
+  const actives = (formHtml.match(/<button[^>]*free-kind[^>]*is-active/g) || []);
+  assert.strictEqual(actives.length, 1, 'exactly one kind may be pre-selected');
+});
+check('the baked-in preview shows the ask badge, matching the default', () =>
+  assert.ok(/free-badge-ask/.test(formHtml), 'preview contradicts the stored default'));
+check('the question sits ABOVE the field set, not below the photo upload', () => {
+  const picker = formHtml.indexOf('class="free-picker"');
+  const fieldSet = formHtml.indexOf('form-field-set');
+  assert.ok(picker !== -1 && fieldSet !== -1);
+  assert.ok(picker < fieldSet, 'the picker is still buried below the other fields');
+});
+check('the old month-counter control is gone', () => {
+  ['data-kind="year"', 'free-count-custom', 'or type'].forEach(dead =>
+    assert.ok(!formHtml.includes(dead), 'leftover from the old picker: ' + dead));
+});
+const detailForPicker = fs.readFileSync(path.join(FLAVOR, 'jstemplates/place-detail.html'), 'utf8');
+check('detail template passes free_state to the badge', () => {
+  assert.ok(/free_badge\s+free_ts\s+free_state/.test(detailForPicker),
+    'badge called without the state - every ask room would render green');
+});
+check('the posted-on stamp appears exactly once on the detail page', () => {
+  const stamps = (detailForPicker.match(/fromnow created_datetime/g) || []);
+  assert.strictEqual(stamps.length, 1, 'the timestamp is printed twice');
+});
+
 check("config: contact field relabeled to Owner's Contact Number", () =>
   assert.ok(configText.includes("_(Owner's Contact Number)")));
 check('the "Whose number is this?" question is gone from the form', () => {

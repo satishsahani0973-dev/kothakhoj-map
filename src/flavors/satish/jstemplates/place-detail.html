@@ -10,7 +10,12 @@
 
         <header class="place-header clearfix">
           <h1>{{#if name }}{{ name }}{{^}}{{>location-string .}}{{/if}}</h1>
-          <p class="place-availability">{{ free_badge free_ts }} <span class="place-type-chip">{{ place_type_label location_type }}</span></p>
+          {{!-- The posted-on stamp sits beside the availability badge, not
+                buried in the submitter sentence below. Every date on this
+                page is a prediction; this one is a fact, and near AMDA
+                where rooms go in days it is what actually decides whether
+                the walk is worth it. --}}
+          <p class="place-availability">{{ free_badge free_ts free_state }} <span class="place-type-chip">{{ place_type_label location_type }}</span> <span class="place-posted">{{#_}}Posted{{/_}} {{ fromnow created_datetime }}</span></p>
           <a href="#" class="btn btn-small share-place"
              data-place-id="{{ id }}"
              data-place-name="{{#if name }}{{ name }}{{^}}Room for rent{{/if}}">{{#_}}Share{{/_}}</a>
@@ -36,7 +41,9 @@
               in {{ region }}
             {{/if}}{{/_}}
 
-            <time datetime="{{ created_datetime }}" class="response-date"><a href="/place/{{ id }}">{{ fromnow created_datetime }}</a></time>
+            {{!-- The posted-on time moved up next to the availability badge.
+                  Keeping it here too would print "3 days ago" twice on the
+                  same screen. --}}
 
             <span class="survey-count">{{ survey_count }} {{ survey_label_by_count }}</span>
 

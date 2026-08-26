@@ -139,7 +139,13 @@ body.signin-gate #list-container {
 .free-picker-label {
   font-size: 14px;
   font-weight: bold;
-  margin: 0 0 6px;
+  margin: 0 0 2px;
+}
+/* Says up front that not knowing is allowed, before they read the buttons. */
+.free-picker-help {
+  font-size: 12px;
+  color: #777;
+  margin: 0 0 8px;
 }
 .free-picker-kind {
   display: flex;
@@ -151,8 +157,12 @@ body.signin-gate #list-container {
   color: #555;
   border: 1px solid #ccc;
   border-radius: 6px;
-  padding: 9px 4px;
-  font-size: 14px;
+  padding: 9px 3px;
+  /* "Not sure yet" and "Pick a month" are much wider than the old
+     Now/Month/Year, so the type shrinks to keep all three on one row. */
+  font-size: 12.5px;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 .free-picker .free-kind.is-active {
   border: 2px solid #1a73e8;
@@ -160,45 +170,37 @@ body.signin-gate #list-container {
   font-weight: bold;
   background: #f4f8ff;
 }
-.free-picker-count-label {
+.free-picker-months-label {
   font-size: 12px;
   color: #666;
   margin: 10px 0 4px;
 }
-.free-count-chips {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex-wrap: wrap;
+/* Eight Nepali month names, four to a row. They are far longer words than
+   "Sep"/"Oct", so the type is deliberately small and the padding tight —
+   the same fix the room-type chips needed to stay on one line. */
+.free-month-chips {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
 }
-.free-picker .free-count {
-  width: 38px;
+.free-picker .free-month {
   background: #fff;
   color: #555;
   border: 1px solid #ccc;
   border-radius: 6px;
-  padding: 7px 0;
-  font-size: 14px;
+  padding: 7px 2px;
+  font-size: 11px;
+  line-height: 1.2;
   text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
 }
-.free-picker .free-count.is-active {
+.free-picker .free-month.is-active {
   border: 2px solid #1a73e8;
   color: #1a73e8;
   font-weight: bold;
   background: #f4f8ff;
-}
-.free-or {
-  font-size: 12px;
-  color: #888;
-  margin: 0 2px;
-}
-/* The form's generic input rule sets width:100%; keep this box small. */
-.place-form input.free-count-custom {
-  width: 64px;
-  padding: 7px 6px;
-  font-size: 16px; /* 16px stops iOS from zooming into the field */
-  border: 1px solid #ccc;
-  border-radius: 6px;
+  padding: 6px 1px; /* keep the box the same size as the 1px-border siblings */
 }
 .free-picker-date {
   margin: 8px 0 0;
@@ -211,6 +213,14 @@ body.signin-gate #list-container {
   font-size: 12px;
   color: #666;
 }
+/* Load-bearing reassurance: without it, the honest answer reads as the one
+   that gets your room ignored. */
+.free-picker-note {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #777;
+}
+.free-picker-note.is-hidden { display: none; }
 
 /* Availability badges — used in the form preview and on the place detail */
 .free-badge {
@@ -228,9 +238,22 @@ body.signin-gate #list-container {
   background: #faeeda;
   color: #854f0b;
 }
+/* Its own blue pair, not a reuse of the orange one: "nobody knows" is a
+   different kind of answer from "spoken for until Kartik", and must not
+   look like a milder version of it. */
+.free-badge-ask {
+  background: #e3f0fc;
+  color: #0b4a80;
+}
 .place-availability {
   margin: 2px 0 6px;
   clear: none;
+}
+/* Every other date on this page is a guess; this one is a fact. */
+.place-posted {
+  font-size: 12px;
+  color: #777;
+  white-space: nowrap;
 }
 .place-type-chip {
   display: inline-block;
@@ -840,6 +863,7 @@ body.signin-gate #list-container {
 }
 .kk-legend-dot-free { background: #4bbd45; }
 .kk-legend-dot-taken { background: #f95016; }
+.kk-legend-dot-ask { background: #0d85e9; }
 /* Phone browse screen: the floating Add-a-place pill / welcome text lives
    at the same corner (bottom 3.2em) — lift the legend above it. */
 @media only screen and (max-width: 59.9375em) {
