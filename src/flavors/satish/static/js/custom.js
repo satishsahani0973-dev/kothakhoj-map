@@ -259,7 +259,14 @@
         { state: 'ask', label: '' } :
         { state: KK.availability.LEGACY_EMPTY, label: '' };
     }
-    if (ts <= now) { return { state: 'now', label: '' }; }
+    // A date that has PASSED is not a green room. Nobody checked it — the
+    // calendar did. Around AMDA the final-year students stay on for licence
+    // preparation long past the month they named, so flipping these to
+    // "Available now" would manufacture the twenty-minute wasted walk on
+    // several rooms at once, on the same morning, with nothing on screen
+    // ever having looked wrong. The room keeps the month it was given and
+    // asks the student to ring first.
+    if (ts <= now) { return { state: 'passed', label: KK.bsLabel(ts) }; }
     return { state: 'later', label: KK.bsLabel(ts) };
   };
 
@@ -340,14 +347,36 @@
       if (role === 'other') { return 'Contact person'; }
       return 'Contact';
     },
+
+    // A dialable href, normalised the same way as the WhatsApp link so the
+    // two buttons never disagree about which number they reach. Returns
+    // null for anything too short to be a Nepali mobile, which is also what
+    // keeps a half-typed number from rendering a dead button.
+    telHref: function(number) {
+      var digits = String(number == null ? '' : number).replace(/[^0-9]/g, '');
+      digits = digits.replace(/^0+/, '').replace(/^977/, '');
+      if (digits.length < 9) { return null; }
+      return 'tel:+977' + digits;
+    },
+
     blockHtml: function(number, role) {
       var num = String(number == null ? '' : number).trim();
       if (!num) { return ''; }
       var label = KK.contact.roleLabel(role);
       var wa = KK.route.waLink(num);
+      var tel = KK.contact.telHref(num);
       var html = '<div class="place-item kk-contact">' +
         '<span class="place-label">' + label + '</span>' +
         '<p class="place-value kk-contact-number">' + KK.contact.esc(num) + '</p>';
+      // Call comes FIRST and WhatsApp second. Most rooms on this map are
+      // occupied, so the number is the product: the student rings from
+      // where he is sitting instead of walking the lanes. Plenty of Butwal
+      // landlords are not on WhatsApp at all, and the ones who are still
+      // answer a call faster than a message from a stranger.
+      if (tel) {
+        html += '<a class="btn kk-call-btn" href="' + tel +
+                '">Call the ' + label.toLowerCase() + '</a>';
+      }
       if (wa) {
         html += '<a class="btn kk-wa-btn" target="_blank" rel="noopener" href="' + wa +
                 '">WhatsApp the ' + label.toLowerCase() + '</a>';
@@ -370,8 +399,14 @@
       } else if (a.state === 'ask') {
         // Deliberately not "unknown" or "no date": it states the fact the
         // poster actually verified with their own eyes, and tells the
-        // reader what to do about it.
-        html = '<span class="free-badge free-badge-ask">Ask — someone still lives here</span>';
+        // reader what to do about it. "Ask" alone was an order with no
+        // object — a student read it as "go and knock", which is the walk
+        // across town this field exists to prevent, while a call button
+        // sat directly underneath.
+        html = '<span class="free-badge free-badge-ask">Someone lives here now — call and ask</span>';
+      } else if (a.state === 'passed') {
+        html = '<span class="free-badge free-badge-ask">Should be free from ' + a.label +
+               ' — call and check</span>';
       } else {
         html = '<span class="free-badge free-badge-later">Free from ' + a.label + '</span>';
       }
@@ -978,7 +1013,7 @@
       return '<div class="kk-legend">' +
         '<div class="kk-legend-row"><span class="kk-legend-dot kk-legend-dot-free"></span>Available now</div>' +
         '<div class="kk-legend-row"><span class="kk-legend-dot kk-legend-dot-taken"></span>Free later</div>' +
-        '<div class="kk-legend-row"><span class="kk-legend-dot kk-legend-dot-ask"></span>Ask — someone lives here</div>' +
+        '<div class="kk-legend-row"><span class="kk-legend-dot kk-legend-dot-ask"></span>Someone lives here — call and ask</div>' +
         '</div>';
     }
   };
@@ -1070,7 +1105,7 @@
       $months.addClass('is-hidden');
       $date.addClass('is-hidden');
       writeFree($picker, KK.freeDate.compute('ask'));
-      $preview.html('Students will see: <span class="free-badge free-badge-ask">Ask — someone still lives here</span>');
+      $preview.html('Students will see: <span class="free-badge free-badge-ask">Someone lives here now — call and ask</span>');
       // Says out loud that the room is still listed. Without this the
       // honest answer feels like the one that gets you nothing.
       $note.removeClass('is-hidden');
@@ -1088,7 +1123,7 @@
       // stored value at "ask" until they actually choose one.
       $date.addClass('is-hidden');
       writeFree($picker, KK.freeDate.compute('ask'));
-      $preview.html('Students will see: <span class="free-badge free-badge-ask">Ask — someone still lives here</span>');
+      $preview.html('Students will see: <span class="free-badge free-badge-ask">Someone lives here now — call and ask</span>');
       return;
     }
 

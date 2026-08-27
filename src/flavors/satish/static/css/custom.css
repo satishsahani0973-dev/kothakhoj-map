@@ -895,6 +895,24 @@ body.kk-directions .kk-legend { display: none; }
   font-size: 16px;
   font-weight: bold;
 }
+/* Call first, WhatsApp second: most rooms on the map are occupied, so the
+   number is the point — and many Butwal landlords have no WhatsApp at all. */
+.kk-call-btn,
+#content a.kk-call-btn {
+  display: inline-block;
+  background: #007fbf;
+  color: #fff;
+  border: none;
+  margin-right: 6px;
+}
+.kk-call-btn:hover,
+.kk-call-btn:focus,
+#content a.kk-call-btn:hover,
+#content a.kk-call-btn:focus {
+  background: #006699;
+  color: #fff;
+}
+
 .kk-wa-btn,
 #content a.kk-wa-btn {
   display: inline-block;

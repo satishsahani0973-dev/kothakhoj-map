@@ -69,11 +69,20 @@ map:
 # The values map the place type to map icons (defined below).
 #
 # Pin colors mean AVAILABILITY, not room type:
-#   green (4bbd45)  = available now (no free_ts, or the date has passed)
+#   green (4bbd45)  = available now — ONLY when a person answered "free now"
 #   orange (f95016) = occupied — free after the stored date
+#   blue (0d85e9)   = everything else, including a date that has PASSED
 # free_ts is an epoch-milliseconds string saved by the add-place form.
-# Places saved before this feature have no free_ts: Number("undefined")
-# is NaN, every ">" check is false, so they fall through to green.
+#
+# Green is never earned by the calendar alone. A room whose picked month has
+# gone by is not known to be empty — nobody looked; the date simply expired.
+# Around AMDA the final-year students stay on for licence preparation well
+# past the month they named, so an automatic flip to green would send several
+# students across town on the same morning to rooms that are still occupied,
+# with nothing on screen ever having looked wrong. Such a room falls to the
+# blue catch-all and its badge says "Should be free from <month> — call and
+# check". Places saved before this feature have no free_state and land there
+# too, which is the same fail-safe direction.
 place_types:
   single_room:
     label: _(Single Room)
@@ -105,7 +114,7 @@ place_types:
           shadowSize: [41, 41]
           iconAnchor: [12, 41]
 
-      - condition: '{{layer.focused}} === true && ("{{free_state}}" === "now" || ("{{free_state}}" !== "ask" && Number("{{free_ts}}") > 0 && Number("{{free_ts}}") <= Date.now()))'
+      - condition: '{{layer.focused}} === true && "{{free_state}}" === "now"'
         # Focused + available now: big green marker
         icon:
           iconUrl: /static/css/images/markers/marker-4bbd45.png
@@ -130,7 +139,7 @@ place_types:
           iconSize: [17, 18]
           iconAnchor: [9, 9]
 
-      - condition: '"{{free_state}}" === "now" || ("{{free_state}}" !== "ask" && Number("{{free_ts}}") > 0 && Number("{{free_ts}}") <= Date.now())'
+      - condition: '"{{free_state}}" === "now"'
         # Available now: green dot
         icon:
           iconUrl: /static/css/images/markers/dot-4bbd45.png
