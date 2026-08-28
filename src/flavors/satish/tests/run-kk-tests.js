@@ -910,6 +910,40 @@ check('choosing a filter closes the nav page so the map is visible', () => {
   assert.ok(/hasClass\('page'\)/.test(fn.slice(0, 1200)),
     'must only close a nav page - never the add-room form');
 });
+check('choosing a filter also closes the mobile hamburger menu', () => {
+  // Second half of the same bug, found on a real phone. The panel and the
+  // mobile menu are DIFFERENT elements: nav.access opens by getting
+  // 'is-exposed', and hidePanel() does not touch it. So on a phone the menu
+  // stayed sitting on top of the map after picking Single Room.
+  const routes = fs.readFileSync(
+    path.join(FLAVOR, '../../sa_web/static/js/routes.js'), 'utf8');
+  const fn = routes.slice(routes.indexOf('filterMap: function'));
+  assert.ok(/\$\('\.access'\)\.removeClass\('is-exposed'\)/.test(fn),
+    'filterMap never closes the mobile menu');
+});
+check('the filter menu entries genuinely cannot close the menu themselves', () => {
+  // Why the fix has to live in filterMap: a link only reaches the handler
+  // that clears 'is-exposed' when its config entry has a slug and is not
+  // external. Every filter entry is external with no slug. If that ever
+  // changes, the fix above becomes redundant rather than wrong - but this
+  // records the reason it exists.
+  const cfg = fs.readFileSync(path.join(FLAVOR, 'config.yml'), 'utf8');
+  const block = cfg.slice(cfg.indexOf('title: Filter Places'));
+  const entries = block.slice(0, block.indexOf('- title: _(Contact)'));
+  assert.strictEqual((entries.match(/external: true/g) || []).length, 4,
+    'expected all four filter entries to be external');
+  assert.ok(!/\n {6}slug:/.test(entries), 'a filter entry gained a slug');
+});
+check('the ordinary menu links still close the menu the way they always did', () => {
+  // Guard against "fixing" the filter by widening the shared handler, which
+  // would start closing the menu for genuinely external links too.
+  const nav = fs.readFileSync(
+    path.join(FLAVOR, '../../sa_web/static/js/views/pages-nav-view.js'), 'utf8');
+  assert.ok(nav.includes("'click .internal-menu-item a': 'onPageLinkClick'"),
+    'the internal-menu-item handler was changed');
+  assert.ok(/onPageLinkClick[\s\S]{0,400}removeClass\('is-exposed'\)/.test(nav),
+    'About / Sign in / Contact no longer close the menu');
+});
 check('the filter change is announced so the map can draw the chip', () => {
   const routes = fs.readFileSync(
     path.join(FLAVOR, '../../sa_web/static/js/routes.js'), 'utf8');

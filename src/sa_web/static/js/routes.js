@@ -232,6 +232,23 @@ var Shareabouts = Shareabouts || {};
       if (this.appView.$panel && this.appView.$panel.hasClass('page')) {
         this.appView.hidePanel();
       }
+
+      // ...and on a phone, close the ☰ menu itself, which is a DIFFERENT
+      // element from the panel above.
+      //
+      // The mobile menu is nav.access, opened by adding 'is-exposed'. The
+      // only code that ever removes it is the 'click .internal-menu-item a'
+      // handler in pages-nav-view.js, and a link earns that class only when
+      // its config entry has a slug and is not external. About, Sign in and
+      // Contact qualify, so tapping them closes the menu. The four filter
+      // entries are declared `external: true` with no slug, so they never
+      // reach that handler and the menu stayed open on top of the map — the
+      // student picked Single Room and still could not see the result.
+      //
+      // Doing it here rather than widening that handler keeps it to the
+      // filter routes: an external link that really does leave the site is
+      // left alone.
+      $('.access').removeClass('is-exposed');
     }
   });
 
