@@ -163,19 +163,10 @@ check('a future date -> later, labelled with the Nepali month', () => {
   assert.strictEqual(a.state, 'later');
   assert.strictEqual(a.label, 'Kartik 2083');
 });
-check('the date has passed -> passed, NOT green', () => {
-  // The calendar is not a witness. Nobody looked at the room; the date
-  // merely expired. Near AMDA the final-year students stay on for licence
-  // preparation past the month they named, so an automatic green would
-  // send several students across town on the same morning.
-  const a = KK.availability(String(now - 1000), now, 'date');
-  assert.strictEqual(a.state, 'passed');
-  assert.notStrictEqual(a.state, 'now');
-});
-check('a passed room keeps the month it was given, to say it out loud', () => {
-  const kartik = KK.bsTs('2026-10-18');
-  const after = kartik + 5 * 86400000;
-  assert.strictEqual(KK.availability(String(kartik), after, 'date').label, 'Kartik 2083');
+check('the date has passed -> now', () => {
+  // The month arriving flips the room green by itself. The date was named
+  // by the student leaving that room, so it is trusted until it is changed.
+  assert.strictEqual(KK.availability(String(now - 1000), now, 'date').state, 'now');
 });
 check('state date but no timestamp -> ask, never green', () => {
   assert.strictEqual(KK.availability('', now, 'date').state, 'ask');
@@ -183,9 +174,7 @@ check('state date but no timestamp -> ask, never green', () => {
 check('legacy row with a usable date is still trusted', () => {
   // No free_state at all: if the poster really did pick a date, keep it.
   assert.strictEqual(KK.availability(String(KK.bsTs('2026-10-18')), now).state, 'later');
-  // ...but a legacy date that has gone by is no more trustworthy than a
-  // new one: it goes blue and asks the student to ring first.
-  assert.strictEqual(KK.availability(String(now - 1000), now).state, 'passed');
+  assert.strictEqual(KK.availability(String(now - 1000), now).state, 'now');
 });
 check('legacy row with nothing at all -> ask, not green', () => {
   // We know nothing about it, so it fails toward "go and ask" rather than
@@ -213,14 +202,11 @@ check('the badge never says a bare "Ask" with no object', () => {
   const html = String(Handlebars.helpers.free_badge('', 'ask'));
   assert.ok(!/>Ask\b/.test(html), html);
 });
-check('a passed date -> blue badge that still names the month and asks for a call', () => {
+check('a passed date -> green badge', () => {
   // The helper reads the real clock, so use a month that has genuinely
   // gone by. Bhadra 2083 began 17 Aug 2026.
   const html = String(Handlebars.helpers.free_badge(String(KK.bsTs('2026-08-17')), 'date'));
-  assert.ok(html.includes('free-badge-ask'), 'a passed date must not be green: ' + html);
-  assert.ok(html.includes('Bhadra 2083'), html);
-  assert.ok(html.includes('call and check'), html);
-  assert.ok(!html.includes('Available now'), html);
+  assert.ok(html.includes('free-badge-now') && html.includes('Available now'), html);
 });
 check('future date -> orange badge naming the Nepali month', () => {
   const html = String(Handlebars.helpers.free_badge(String(KK.bsTs('2029-04-14')), 'date'));
@@ -353,9 +339,8 @@ check('now -> green dot', () =>
   assert.ok(firstIcon({ free_state: 'now', free_ts: '', layer: { focused: false } }).includes('dot-4bbd45')));
 check('date + future -> orange dot', () =>
   assert.ok(firstIcon({ free_state: 'date', free_ts: FUTURE, layer: { focused: false } }).includes('dot-f95016')));
-check('date + past -> BLUE dot, never an automatic green', () =>
-  assert.ok(firstIcon({ free_state: 'date', free_ts: PAST, layer: { focused: false } }).includes('dot-0d85e9'),
-    'an expired date must not paint a pin green - nobody checked that room'));
+check('date + past -> green dot (auto flip)', () =>
+  assert.ok(firstIcon({ free_state: 'date', free_ts: PAST, layer: { focused: false } }).includes('dot-4bbd45')));
 check('date but no timestamp -> blue, never green', () =>
   assert.ok(firstIcon({ free_state: 'date', free_ts: '', layer: { focused: false } }).includes('dot-0d85e9')));
 
@@ -364,17 +349,17 @@ check('legacy with nothing -> blue dot (catch-all fails safe)', () =>
   assert.ok(firstIcon({ layer: { focused: false } }).includes('dot-0d85e9')));
 check('legacy with a real future date is still trusted -> orange', () =>
   assert.ok(firstIcon({ free_ts: FUTURE, layer: { focused: false } }).includes('dot-f95016')));
-check('legacy with a passed date -> blue', () =>
-  assert.ok(firstIcon({ free_ts: PAST, layer: { focused: false } }).includes('dot-0d85e9')));
-check('the ONLY route to a green dot is free_state === "now"', () => {
-  // Mirrors the JS guarantee at the config layer, where the pin colour is
-  // actually decided.
-  const greens = rules.filter(r => r.icon.includes('4bbd45'));
-  assert.ok(greens.length > 0, 'no green rule found at all');
-  greens.forEach(r => {
-    assert.ok(!/free_ts/.test(r.condition),
-      'a green rule still reads the clock: ' + r.condition);
-  });
+check('legacy with a passed date -> green', () =>
+  assert.ok(firstIcon({ free_ts: PAST, layer: { focused: false } }).includes('dot-4bbd45')));
+check('the badge and the pin agree about an expired date', () => {
+  // Two separate implementations decide this - KK.availability for the
+  // badge, the config rules for the pin colour. They drifted apart once
+  // before; if one is changed the other must move with it.
+  const jsState = KK.availability(PAST, Date.now(), 'date').state;
+  const pinIsGreen = firstIcon({ free_state: 'date', free_ts: PAST, layer: { focused: false } })
+    .includes('dot-4bbd45');
+  assert.strictEqual(jsState === 'now', pinIsGreen,
+    'badge says ' + jsState + ' but the pin green-ness is ' + pinIsGreen);
 });
 
 check('focused + date + future -> big orange marker', () =>
@@ -578,27 +563,14 @@ check('no month arithmetic survives - compute takes a table entry, not a count',
   assert.strictEqual(r.state, 'date',
     'compute should treat a stray string as an object-less choice, not do arithmetic');
 });
-check('a room turns from "free later" at the first NEPAL morning of its month', () => {
-  // The boundary still has to land on Nepal midnight rather than whatever
+check('a room is green from the first NEPAL morning of its month', () => {
+  // The pin must flip at the start of the day in Nepal, not at whatever
   // hour the viewer's device thinks the day starts - that bug once showed
-  // a Kartik room as Ashoj to everyone behind +05:45. What changed is the
-  // destination: the month arriving no longer proves the room is empty, so
-  // it becomes 'passed' (blue, "call and check") rather than green.
+  // a Kartik room as Ashoj to everyone behind +05:45.
   const kartik = KK.bsMonths.find(m => m.m === 'Kartik' && m.y === 2083);
   const r = KK.freeDate.compute(kartik);
   const morning = KK.bsTs('2026-10-18') + 8 * 60 * 60 * 1000; // 08:00 in Nepal
-  assert.strictEqual(KK.availability(r.freeTs, morning, 'date').state, 'passed');
-});
-check('nothing ever becomes green on its own - only a person can say "free now"', () => {
-  // The single guarantee behind the green pin. If this fails, the map is
-  // making a promise no human made.
-  const states = [];
-  for (const src of [KK.bsTs('2026-10-18'), Date.now() - 1, 1, 946684800000]) {
-    states.push(KK.availability(String(src), Date.now() + 5 * 365 * 86400000, 'date').state);
-    states.push(KK.availability(String(src), Date.now() + 5 * 365 * 86400000).state);
-  }
-  assert.ok(states.every(s => s !== 'now'),
-    'a stored date turned green with nobody checking: ' + states.join(','));
+  assert.strictEqual(KK.availability(r.freeTs, morning, 'date').state, 'now');
 });
 check('and still orange the evening before', () => {
   const kartik = KK.bsMonths.find(m => m.m === 'Kartik' && m.y === 2083);

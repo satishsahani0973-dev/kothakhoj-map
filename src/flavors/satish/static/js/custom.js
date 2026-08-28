@@ -259,14 +259,20 @@
         { state: 'ask', label: '' } :
         { state: KK.availability.LEGACY_EMPTY, label: '' };
     }
-    // A date that has PASSED is not a green room. Nobody checked it — the
-    // calendar did. Around AMDA the final-year students stay on for licence
-    // preparation long past the month they named, so flipping these to
-    // "Available now" would manufacture the twenty-minute wasted walk on
-    // several rooms at once, on the same morning, with nothing on screen
-    // ever having looked wrong. The room keeps the month it was given and
-    // asks the student to ring first.
-    if (ts <= now) { return { state: 'passed', label: KK.bsLabel(ts) }; }
+    // The month arriving flips the room green on its own.
+    //
+    // Deliberate, and Satish's call: the people who post these rooms are the
+    // final-year students about to leave them, so the month is not a
+    // bystander's guess — it is stated by the person walking out the door,
+    // and anyone who does not know picks "Not sure yet" instead, which
+    // stores no timestamp and never expires.
+    //
+    // The known risk, accepted for now: nobody revisits the room after that
+    // date, so if the landlord re-lets it quickly the pin keeps saying
+    // "Available now". Revisit if students start reporting rooms that were
+    // already taken — the alternative is to stop trusting the date once it
+    // is stale rather than to distrust it from the start.
+    if (ts <= now) { return { state: 'now', label: '' }; }
     return { state: 'later', label: KK.bsLabel(ts) };
   };
 
@@ -404,9 +410,6 @@
         // across town this field exists to prevent, while a call button
         // sat directly underneath.
         html = '<span class="free-badge free-badge-ask">Someone lives here now — call and ask</span>';
-      } else if (a.state === 'passed') {
-        html = '<span class="free-badge free-badge-ask">Should be free from ' + a.label +
-               ' — call and check</span>';
       } else {
         html = '<span class="free-badge free-badge-later">Free from ' + a.label + '</span>';
       }
