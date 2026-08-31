@@ -55,15 +55,33 @@ map:
 
     # GeoJSON Layers
     # ==============
+    # District outlines. One file per district, all styled the same so the map
+    # reads as one coverage area rather than three separate shapes.
+    #
+    # butwal.geojson is misnamed - it is the whole of RUPANDEHI district, not
+    # Butwal municipality. Left as-is because the filename is baked into the
+    # deployed static bundle; renaming it buys nothing and risks a 404.
+    #
+    # To add a district: fetch its OSM relation (admin_level 6 is a district in
+    # Nepal - search the DEVANAGARI name, the English one is only a secondary
+    # tag), simplify it, save it here, and add three lines below.
     - url: /static/data/butwal.geojson
       type: json
-      rules:
+      rules: &district-outline
         - condition: 'true'
           style:
             color: "#444"
             opacity: 0.6
             fillOpacity: 0.1
             weight: 1
+
+    - url: /static/data/kaski.geojson
+      type: json
+      rules: *district-outline
+
+    - url: /static/data/chitwan.geojson
+      type: json
+      rules: *district-outline
 
 # The keys show up in the dropdown list when you are adding a new place
 # The values map the place type to map icons (defined below).
