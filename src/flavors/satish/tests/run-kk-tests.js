@@ -874,6 +874,25 @@ check('the footer identifies the firm on every page', () => {
   assert.ok(idx.includes('firm-line'));
   assert.ok(idx.includes('/page/business'));
 });
+check('no template comment leaks onto the page', () => {
+  // Django's {# #} comment is SINGLE-LINE only. Spread across two lines it
+  // stops being a comment and the text is printed to the visitor - which is
+  // exactly what happened, live, in the footer directly above the firm's
+  // registration number. Anything multi-line must be {% comment %}.
+  const dir = path.join(FLAVOR, 'templates');
+  fs.readdirSync(dir).filter(f => f.endsWith('.html')).forEach(f => {
+    const t = fs.readFileSync(path.join(dir, f), 'utf8');
+    let i = 0;
+    while ((i = t.indexOf('{#', i)) !== -1) {
+      const close = t.indexOf('#}', i);
+      if (close === -1) { break; }
+      assert.ok(t.slice(i, close).indexOf('\n') === -1,
+        f + ' has a multi-line {# #} comment - Django will print it to the page. ' +
+        'Use {% comment %} ... {% endcomment %} instead.');
+      i = close + 2;
+    }
+  });
+});
 check('the page is declared so /page/business resolves', () => {
   const cfg = fs.readFileSync(path.join(FLAVOR, 'config.yml'), 'utf8');
   assert.ok(/slug:\s*business/.test(cfg));

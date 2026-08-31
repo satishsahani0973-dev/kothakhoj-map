@@ -78,8 +78,15 @@
  -->
 {% block colophon %}
 <p id="powered-by">Powered by <span class="openplans-logo">KothaKhoj</span></p>
-        {# The e-commerce rules require the business behind the platform to be
-           identifiable from the site itself, not just on a filing. #}
+        {% comment %}
+          The e-commerce rules require the business behind the platform to be
+          identifiable from the site itself, not just on a filing.
+
+          This must stay a block comment. The hash form is single-line only;
+          spread over two lines it stops being a comment and Django prints the
+          text straight onto the page - which it did, live, directly above the
+          firm's registration number, until Satish caught it in a screenshot.
+        {% endcomment %}
         <p id="firm-line">नेपाल कोठा खोज &middot; दर्ता नं. ५२/०८३/०८४ &middot; PAN १५७५६४७२१
           &middot; <a href="/page/business" rel="internal">व्यवसायको विवरण</a></p>
 {% endblock %}
