@@ -874,6 +874,18 @@ check('the footer identifies the firm on every page', () => {
   assert.ok(idx.includes('firm-line'));
   assert.ok(idx.includes('/page/business'));
 });
+check('the e-commerce listing number is published, in both places', () => {
+  // The department sent the application back once because these identifiers
+  // were not on the site itself. The listing number is the last one, and it
+  // belongs in the footer of every page as well as on the details page.
+  const idx = fs.readFileSync(path.join(FLAVOR, 'templates/index.html'), 'utf8');
+  const biz = fs.readFileSync(path.join(FLAVOR, 'jstemplates/pages/business.html'), 'utf8');
+  assert.ok(idx.includes('००१-३५७'), 'listing number missing from the footer');
+  assert.ok(biz.includes('००१-३५७'), 'listing number missing from the details page');
+  assert.ok(biz.includes('001-357'), 'listing number missing from the English summary');
+  assert.ok(biz.includes('वाणिज्य, आपूर्ति तथा उपभोक्ता संरक्षण विभाग'),
+    'the listing authority should be named alongside the number');
+});
 check('no template comment leaks onto the page', () => {
   // Django's {# #} comment is SINGLE-LINE only. Spread across two lines it
   // stops being a comment and the text is printed to the visitor - which is
