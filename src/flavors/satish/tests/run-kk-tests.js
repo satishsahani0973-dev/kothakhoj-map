@@ -292,6 +292,46 @@ check('empty or header-only text -> no colleges', () => {
   assert.deepStrictEqual(KK.colleges.parseCsv('name,lat,lng'), []);
 });
 
+// A name containing a comma is published as a QUOTED field. Splitting on
+// every comma pushed the tail of the name into the lat column, so the
+// college lost its pin and the search box kept it with a NaN position -
+// choosing it then threw inside Leaflet and killed the search click.
+check('a quoted name containing a comma keeps its coordinates', () => {
+  const rows = KK.colleges.parseCsv(
+    'name,lat,lng,aliases\n"Institute of Forestry, Pokhara Campus",28.1875,83.99274,iof/forestry\n');
+  assert.strictEqual(rows.length, 1);
+  assert.strictEqual(rows[0].name, 'Institute of Forestry, Pokhara Campus');
+  assert.strictEqual(rows[0].lat, 28.1875);
+  assert.strictEqual(rows[0].lng, 83.99274);
+});
+check('one bad row does not cost the other colleges their pins', () => {
+  const rows = KK.colleges.parseCsv(
+    'name,lat,lng,aliases\n' +
+    'Plain College,27.6,83.4,pc\n' +
+    '"Balkumari College, Narayangarh",27.69453,84.42669,bk\n' +
+    'Another College,28.2,84.0,ac\n');
+  assert.strictEqual(rows.length, 3);
+  assert.deepStrictEqual(rows.map(r => r.name),
+    ['Plain College', 'Balkumari College, Narayangarh', 'Another College']);
+  rows.forEach(r => assert.ok(isFinite(r.lat) && isFinite(r.lng), r.name + ' has real coordinates'));
+});
+check('doubled quotes, CRLF and a repeated header row are handled', () => {
+  const rows = KK.colleges.parseCsv(
+    'name,lat,lng\r\n' +
+    '"The ""Old"" Campus",27.7,83.5\r\n' +
+    'name,lat,lng\r\n' +          // the stray duplicate header the sheet carries
+    'Good College,27.8,83.6\r\n');
+  assert.strictEqual(rows.length, 2);
+  assert.strictEqual(rows[0].name, 'The "Old" Campus');
+  assert.strictEqual(rows[1].name, 'Good College');
+});
+check('a quoted field may contain a newline', () => {
+  const rows = KK.colleges.parseCsv('name,lat,lng\n"Two\nLines Campus",27.9,83.7\nNext,28.0,83.8\n');
+  assert.strictEqual(rows.length, 2);
+  assert.strictEqual(rows[0].name, 'Two\nLines Campus');
+  assert.strictEqual(rows[1].name, 'Next');
+});
+
 // ---- real config.yml marker rules ----
 console.log('config.yml marker conditions (argo substitution + eval)');
 const configText = fs.readFileSync(path.join(FLAVOR, 'config.yml'), 'utf8');

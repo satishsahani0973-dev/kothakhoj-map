@@ -233,15 +233,37 @@ var Shareabouts = Shareabouts || {};
 
       var places = [];
 
+      // Quote-aware, because the sheet publishes any name containing a
+      // comma as a QUOTED field. The old split(',') pushed the second half
+      // of such a name into the lat column, so the entry below arrived with
+      // lat = NaN; picking it in the search list then handed Leaflet an
+      // invalid LatLng and the whole search click died. See the same parser
+      // in the flavor's custom.js (KK.colleges.rows).
       function parseCSV(text) {
-        var lines = text.trim().split('\n');
-        var headers = lines[0].split(',').map(function(h) { return h.trim().toLowerCase(); });
+        var s = String(text == null ? '' : text).replace(/\r\n?/g, '\n');
+        var lines = [], line = [], field = '', quoted = false;
+        for (var i = 0; i < s.length; i++) {
+          var c = s.charAt(i);
+          if (quoted) {
+            if (c !== '"') { field += c; }
+            else if (s.charAt(i + 1) === '"') { field += '"'; i++; }
+            else { quoted = false; }
+          } else if (c === '"') { quoted = true; }
+          else if (c === ',') { line.push(field); field = ''; }
+          else if (c === '\n') { line.push(field); field = ''; lines.push(line); line = []; }
+          else { field += c; }
+        }
+        if (field !== '' || line.length) { line.push(field); lines.push(line); }
+        lines = lines.filter(function(r) {
+          return r.some(function(f) { return String(f).trim() !== ''; });
+        });
+        if (lines.length < 2) { return []; }
+        var headers = lines[0].map(function(h) { return String(h).trim().toLowerCase(); });
         var rows = [];
-        for (var i = 1; i < lines.length; i++) {
-          var cols = lines[i].split(',');
-          var row = {};
+        for (var j = 1; j < lines.length; j++) {
+          var cols = lines[j], row = {};
           headers.forEach(function(h, idx) {
-            row[h] = cols[idx] ? cols[idx].trim() : '';
+            row[h] = String(cols[idx] == null ? '' : cols[idx]).trim();
           });
           rows.push(row);
         }
@@ -319,11 +341,15 @@ var Shareabouts = Shareabouts || {};
       var setupFuseAndData = function() {
         $.get(SHEET_CSV_URL, function(csvText) {
           parseCSV(csvText).forEach(function(row) {
-            if (row.name && row.lat && row.lng) {
+            // isFinite, not just truthiness: a malformed row (or a repeated
+            // header) yields lat = NaN, and a NaN entry that reaches the
+            // result list throws inside Leaflet the moment it is chosen.
+            var lat = parseFloat(row.lat), lng = parseFloat(row.lng);
+            if (row.name && isFinite(lat) && isFinite(lng)) {
               places.push({
                 name: row.name,
-                lat: parseFloat(row.lat),
-                lng: parseFloat(row.lng),
+                lat: lat,
+                lng: lng,
                 aliases: row.aliases || ''
               });
             }

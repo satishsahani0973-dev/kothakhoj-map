@@ -908,17 +908,50 @@
   var CAMPUS_RADIUS_METERS = 300;
 
   KK.colleges = {
-    // Pure: CSV text -> [{name, lat, lng}], dropping rows without a name
-    // or with unusable coordinates.
+    // CSV text -> rows of fields, honouring the quoting the sheet actually
+    // emits: a quoted field may contain commas, doubled quotes, and even
+    // newlines.
+    //
+    // This used to be a plain split(','). Every college whose name contains
+    // a comma - "Institute of Forestry, Pokhara Campus" - is published by
+    // Google as a QUOTED field, so the naive split put the second half of
+    // the name into the lat column. Those colleges lost their pin here, and
+    // the search box (which had no coordinate check) kept them with a NaN
+    // position, so choosing one handed Leaflet an invalid LatLng and killed
+    // the click. One comma in one name broke search for the whole map.
+    rows: function(text) {
+      var s = String(text == null ? '' : text).replace(/\r\n?/g, '\n');
+      var rows = [], row = [], field = '', quoted = false;
+      for (var i = 0; i < s.length; i++) {
+        var c = s.charAt(i);
+        if (quoted) {
+          if (c !== '"') { field += c; }
+          else if (s.charAt(i + 1) === '"') { field += '"'; i++; }
+          else { quoted = false; }
+        } else if (c === '"') { quoted = true; }
+        else if (c === ',') { row.push(field); field = ''; }
+        else if (c === '\n') { row.push(field); field = ''; rows.push(row); row = []; }
+        else { field += c; }
+      }
+      if (field !== '' || row.length) { row.push(field); rows.push(row); }
+      return rows.filter(function(r) {
+        return r.some(function(f) { return String(f).trim() !== ''; });
+      });
+    },
+
+    // Pure: CSV text -> [{name, lat, lng}], dropping rows without a name or
+    // with unusable coordinates. That check also skips a repeated header
+    // row, which the sheet has picked up once before.
     parseCsv: function(text) {
-      var lines = String(text || '').trim().split('\n');
-      if (lines.length < 2) { return []; }
-      var headers = lines[0].split(',').map(function(h) { return h.trim().toLowerCase(); });
+      var rows = KK.colleges.rows(text);
+      if (rows.length < 2) { return []; }
+      var headers = rows[0].map(function(h) { return String(h).trim().toLowerCase(); });
       var out = [];
-      for (var i = 1; i < lines.length; i++) {
-        var cols = lines[i].split(',');
-        var row = {};
-        headers.forEach(function(h, idx) { row[h] = (cols[idx] || '').trim(); });
+      for (var i = 1; i < rows.length; i++) {
+        var cols = rows[i], row = {};
+        headers.forEach(function(h, idx) {
+          row[h] = String(cols[idx] == null ? '' : cols[idx]).trim();
+        });
         var lat = parseFloat(row.lat), lng = parseFloat(row.lng);
         if (row.name && isFinite(lat) && isFinite(lng)) {
           out.push({ name: row.name, lat: lat, lng: lng });
