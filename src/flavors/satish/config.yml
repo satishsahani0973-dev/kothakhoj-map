@@ -334,13 +334,16 @@ pages:
 
   - title: _(More...)
     pages:
-      - title: _(Why Shareabouts?)
+      # Was "Why Shareabouts?" pointing at /static/pages/why.html, which does
+      # not exist - the link 404'd for every visitor. The page itself lives in
+      # jstemplates/pages/why.html and is already written for KothaKhoj, so it
+      # is wired up the same way About and Terms are, with `name:`.
+      # The Features entry was removed: its page still carried the upstream
+      # project's developer-facing text and said nothing about rooms, and
+      # "Why KothaKhoj?" already covers it better.
+      - title: _(Why KothaKhoj?)
         slug: why
-        url: /static/pages/why.html
-
-      - title: _(Features)
-        slug: features
-        url: /static/pages/features.html
+        name: why
 
       - title: _(Terms of Use)
         slug: terms
