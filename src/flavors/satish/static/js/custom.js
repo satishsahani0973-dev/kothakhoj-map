@@ -651,6 +651,25 @@
   KK.fit = {
     MAX_KM: 10,
 
+    // The path the visitor actually ARRIVED on, read once while this file is
+    // being evaluated - before the app boots and before anything can rewrite
+    // the address bar.
+    ENTRY_PATH: (window.location && window.location.pathname) || '/',
+
+    // Pure: should the auto-fit stand aside? It must whenever the url already
+    // says what to look at - a shared room link, the list, or a /zoom/lat/lng
+    // link from a QR code or a message.
+    //
+    // This is tested against the ENTRY path rather than the live fragment,
+    // and that is the whole point. The first-visit sign-in gate navigates to
+    // page/signin, so by the time the fit runs a moment later the fragment no
+    // longer mentions the coordinates, the guard sees "page/signin", decides
+    // the visitor asked for nothing in particular, and re-frames the map on
+    // the rooms - throwing away the exact spot the QR code asked for.
+    skipFor: function(path) {
+      return /^(place\/|list|\d)/.test(String(path || '').replace(/^\/+/, ''));
+    },
+
     // Pure: [[lat, lng], ...] -> the pins near the median point. With fewer
     // than 3 pins there is no "cluster" to speak of; keep them all.
     cluster: function(points) {
@@ -674,8 +693,7 @@
       var app = window.app;
       var map = currentMap();
       if (!app || !map || !window.Backbone) { return; }
-      var fragment = window.Backbone.history.getFragment() || '';
-      if (/^(place\/|list|\d)/.test(fragment)) { return; }
+      if (KK.fit.skipFor(KK.fit.ENTRY_PATH)) { return; }
 
       var userMoved = false;
       map.once('dragstart', function() { userMoved = true; });

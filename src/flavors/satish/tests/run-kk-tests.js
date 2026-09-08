@@ -51,6 +51,39 @@ check('signed-in user -> no gate', () => assert.strictEqual(KK.gate.shouldShow({
 check('choice already made -> no gate', () => assert.strictEqual(KK.gate.shouldShow(null, true, '/'), false));
 check('shared place link -> no gate', () => assert.strictEqual(KK.gate.shouldShow(null, false, '/place/123'), false));
 
+// ---- auto-fit vs a deep link (bug: a QR code's coordinates were thrown away) ----
+// The auto-fit re-frames the map on the rooms once they load. It must stand
+// aside when the url already named a spot. The guard used to read the LIVE
+// fragment, but the first-visit gate navigates to page/signin first, so by the
+// time the fit ran the coordinates were gone from the fragment and the map
+// jumped away from the college the QR code had asked for.
+console.log('fit.skipFor');
+check('a /zoom/lat/lng deep link -> auto-fit stands aside', () => {
+  assert.strictEqual(KK.fit.skipFor('/16/27.68463/83.45451'), true);
+  assert.strictEqual(KK.fit.skipFor('16/27.68463/83.45451'), true);
+});
+check('a shared room link -> auto-fit stands aside', () => {
+  assert.strictEqual(KK.fit.skipFor('/place/27'), true);
+});
+check('the list -> auto-fit stands aside', () => {
+  assert.strictEqual(KK.fit.skipFor('/list'), true);
+});
+check('a plain visit -> auto-fit still runs', () => {
+  assert.strictEqual(KK.fit.skipFor('/'), false);
+  assert.strictEqual(KK.fit.skipFor(''), false);
+  assert.strictEqual(KK.fit.skipFor(undefined), false);
+});
+check('the page the gate redirects to must NOT look like a deep link', () => {
+  // If this ever returned true the auto-fit would stop working for ordinary
+  // first-time visitors, which is the opposite bug.
+  assert.strictEqual(KK.fit.skipFor('/page/signin'), false);
+  assert.strictEqual(KK.fit.skipFor('/page/about'), false);
+  assert.strictEqual(KK.fit.skipFor('/filter/single_room'), false);
+});
+check('the entry path is captured, not the live one', () => {
+  assert.strictEqual(typeof KK.fit.ENTRY_PATH, 'string');
+});
+
 // ---- Nepali month table ----
 console.log('bsMonths');
 check('table is sorted and every entry parses', () => {
