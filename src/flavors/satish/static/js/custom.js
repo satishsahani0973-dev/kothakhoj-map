@@ -609,11 +609,23 @@
   // way of signing in sat below the fold. The CSS hides the map for this one
   // panel; this decides when that is true.
   KK.signinScreen = {
-    // Pure: is the sign-in panel the thing on screen right now? Both halves
-    // matter - .signin-page lingers in the DOM for a moment after the panel
-    // is dismissed, and content-visible alone is true for every other panel.
-    shouldHideMap: function(contentVisible, hasSigninPage) {
-      return !!(contentVisible && hasSigninPage);
+    // Pure: is the sign-in panel the thing on screen right now, and did the
+    // visitor ask for it?
+    //
+    // .signin-page lingers in the DOM for a moment after the panel is
+    // dismissed, and content-visible alone is true for every other panel -
+    // so both of those are needed.
+    //
+    // The gate is the third, and it is the one that matters most. On a first
+    // visit the panel is opened FOR the visitor, and that screen is built to
+    // show the live map blurred behind it (body.signin-gate ... blur(7px))
+    // so the first thing anyone sees is still recognisably a map. Taking the
+    // map away there leaves a bare form on white, which reads as a broken
+    // site or a login wall - the opposite of "no account needed". So during
+    // the gate the map stays, panel too tall or not; the fit only applies
+    // when someone deliberately tapped Sign in.
+    shouldHideMap: function(contentVisible, hasSigninPage, gateActive) {
+      return !!(contentVisible && hasSigninPage && !gateActive);
     }
   };
 
@@ -622,7 +634,8 @@
     function sync() {
       var want = KK.signinScreen.shouldHideMap(
         $body.hasClass('content-visible'),
-        !!document.querySelector('.signin-page'));
+        !!document.querySelector('.signin-page'),
+        $body.hasClass('signin-gate'));
       // Only write when it actually changes: this runs from an observer that
       // watches body's class, so an unconditional write would retrigger it.
       if (want === $body.hasClass('signin-screen')) { return; }

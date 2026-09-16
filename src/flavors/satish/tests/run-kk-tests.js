@@ -401,14 +401,25 @@ check('a video with no dimensions yet -> null, not a zero-size canvas', () => {
 // The panel is taller than a phone screen and stock Shareabouts parks a 325px
 // map above it, pushing every way of signing in below the fold.
 console.log('signinScreen.shouldHideMap');
-check('sign-in panel open -> hide the map', () =>
-  assert.strictEqual(KK.signinScreen.shouldHideMap(true, true), true));
+check('visitor tapped Sign in -> hide the map', () =>
+  assert.strictEqual(KK.signinScreen.shouldHideMap(true, true, false), true));
 check('some other panel open -> leave the map alone', () =>
-  assert.strictEqual(KK.signinScreen.shouldHideMap(true, false), false));
+  assert.strictEqual(KK.signinScreen.shouldHideMap(true, false, false), false));
 check('panel dismissed but markup still in the DOM -> map comes back', () =>
-  assert.strictEqual(KK.signinScreen.shouldHideMap(false, true), false));
+  assert.strictEqual(KK.signinScreen.shouldHideMap(false, true, false), false));
 check('plain map view -> map stays', () =>
-  assert.strictEqual(KK.signinScreen.shouldHideMap(false, false), false));
+  assert.strictEqual(KK.signinScreen.shouldHideMap(false, false, false), false));
+
+// The first-visit gate opens this same panel on the visitor's behalf, and
+// that screen is built to show the live map blurred behind it. Hiding the map
+// there left a bare form on white - it shipped, and it was the first thing
+// every new visitor saw. The gate wins over the fit.
+check('FIRST VISIT: the gate opened it -> map stays, blurred, behind', () =>
+  assert.strictEqual(KK.signinScreen.shouldHideMap(true, true, true), false));
+check('gate released while the panel is still open -> fit applies again', () =>
+  assert.strictEqual(KK.signinScreen.shouldHideMap(true, true, false), true));
+check('the gate flag alone never hides the map', () =>
+  assert.strictEqual(KK.signinScreen.shouldHideMap(false, false, true), false));
 
 // ---- colleges CSV parsing ----
 console.log('colleges.parseCsv');
