@@ -339,7 +339,15 @@ var Shareabouts = Shareabouts || {};
       };
 
       var setupFuseAndData = function() {
-        $.get(SHEET_CSV_URL, function(csvText) {
+        // Share the one sheet request with the flavor's college pins instead
+        // of fetching the same slow file twice. The fallback covers a partial
+        // deploy: this file ships inside dist/app.js while getSheetCsv ships
+        // inside dist/preload.js, and they are rsynced separately.
+        var fetchSheet = (S.Util && S.Util.getSheetCsv) ?
+          S.Util.getSheetCsv(SHEET_CSV_URL) :
+          $.get(SHEET_CSV_URL);
+
+        fetchSheet.done(function(csvText) {
           parseCSV(csvText).forEach(function(row) {
             // isFinite, not just truthiness: a malformed row (or a repeated
             // header) yields lat = NaN, and a NaN entry that reaches the
@@ -362,6 +370,11 @@ var Shareabouts = Shareabouts || {};
           } else {
             loadFuse();
           }
+        })
+        .fail(function() {
+          // No sheet and no cached copy. The address geocoder still works, so
+          // the box stays usable — it just cannot offer colleges by name.
+          console.warn('College sheet unavailable; search falls back to addresses only.');
         });
       };
 

@@ -83,9 +83,72 @@ var Shareabouts = Shareabouts || {};
       var ids = S.Util.getMyPlaceIds();
       if (ids.indexOf(id) === -1) {
         ids.push(id);
-        window.localStorage.setItem('myPlaceIds', JSON.stringify(ids));
+        // Private browsing (and a full quota) leave localStorage in place but
+        // make setItem throw, so the guard above is not enough. This runs as
+        // the FIRST thing in place-form-view's onSaveSuccess: an unguarded
+        // throw here skipped the redirect that follows it, so a landlord whose
+        // room had just been saved sat looking at an unchanged form and
+        // pressed Save again, filing the room twice. Losing the gold "Yours"
+        // highlight is the acceptable cost; losing the redirect is not.
+        try {
+          window.localStorage.setItem('myPlaceIds', JSON.stringify(ids));
+        } catch (e) {}
       }
     },
+    // One shared fetch of a published Google Sheet CSV, per URL, per page
+    // load. Returns a promise of the raw text.
+    //
+    // Two separate features read the college sheet — the search box in
+    // map-view.js and the college pins in the flavor's custom.js — and each
+    // used to request it independently. Every visitor therefore waited for
+    // the same slow third-party download twice (measured at 1.2-2.8s each,
+    // and Google answers with `private, max-age=300`, so no proxy in between
+    // can cache it either).
+    //
+    // The last good copy is kept in localStorage. Colleges are the only thing
+    // on the map until rooms arrive, and both call sites used to pass a
+    // success callback with no failure path at all — so a blip at Google made
+    // every college silently vanish with nothing said. Falling back to the
+    // previous copy keeps the map useful; a first-ever visit during an outage
+    // is the one case nothing can be done about here.
+    sheetCsvPromises: {},
+
+    getSheetCsv: function(url) {
+      if (S.Util.sheetCsvPromises[url]) {
+        return S.Util.sheetCsvPromises[url];
+      }
+
+      var cacheKey = 'kkSheetCsv:' + url,
+          dfd = $.Deferred();
+
+      // Storage is best-effort on both sides: private browsing throws on
+      // write, and a cleared profile simply has nothing to give back.
+      function remember(text) {
+        try { window.localStorage.setItem(cacheKey, text); } catch (e) {}
+      }
+      function recall() {
+        try { return window.localStorage.getItem(cacheKey); } catch (e) { return null; }
+      }
+
+      $.ajax({url: url, dataType: 'text'})
+        .done(function(text) {
+          if (text) { remember(text); }
+          dfd.resolve(text);
+        })
+        .fail(function() {
+          var cached = recall();
+          if (cached) {
+            S.Util.console.warn('Sheet fetch failed; using the last copy this browser saw.');
+            dfd.resolve(cached);
+          } else {
+            dfd.reject();
+          }
+        });
+
+      S.Util.sheetCsvPromises[url] = dfd.promise();
+      return S.Util.sheetCsvPromises[url];
+    },
+
     isMyPlace: function(model, userToken) {
       var id = model.id || (model.get && model.get('id'));
       var inMyList = id != null && S.Util.getMyPlaceIds().indexOf(id) !== -1;

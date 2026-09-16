@@ -6,11 +6,13 @@
 //   - the availability badge decision (green vs orange, legacy places)
 //   - the real config.yml marker rules, substituted and evaluated exactly
 //     the way leaflet.argo.js does in the browser
+//   - the shared college-sheet fetch, and a browser that refuses to store
 //
 // No dependencies: it stubs the few browser globals custom.js touches.
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 const assert = require('assert');
 
 const FLAVOR = path.join(__dirname, '..');
@@ -1056,6 +1058,166 @@ check('the filter change is announced so the map can draw the chip', () => {
 check('the chip hides during the directions flow', () => {
   const css = fs.readFileSync(path.join(FLAVOR, 'static/css/custom.css'), 'utf8');
   assert.ok(/body\.kk-directions\s+\.kk-filter-chip\s*\{[^}]*display:\s*none/.test(css));
+});
+
+// ---- utils.js: the shared sheet fetch, and storage that refuses to write --
+//
+// These two live in sa_web/static/js/utils.js rather than the flavor, but the
+// flavor is what breaks when they go wrong, so they are covered here.
+//
+// Unlike every other test in this file, these EXECUTE the real utils.js
+// instead of reading it as text — the bugs were both about behaviour under
+// conditions a regex cannot express (a second caller, a refusing browser).
+// It runs in its own vm context so the loose global stubs above, which the
+// custom.js tests depend on, are left exactly as they are.
+function loadUtils(opts) {
+  opts = opts || {};
+  const store = Object.create(null);
+  const requested = [];
+  let inflight = null;
+
+  // Enough of jQuery's Deferred for done/fail/promise to behave.
+  function deferred() {
+    let state = 'pending', value, dones = [], fails = [];
+    const promise = {
+      done(fn) { state === 'resolved' ? fn(value) : dones.push(fn); return promise; },
+      fail(fn) { state === 'rejected' ? fn(value) : fails.push(fn); return promise; },
+      promise() { return promise; },
+    };
+    return {
+      resolve(v) { if (state !== 'pending') { return; } state = 'resolved'; value = v; dones.forEach(f => f(v)); },
+      reject() { if (state !== 'pending') { return; } state = 'rejected'; fails.forEach(f => f()); },
+      promise() { return promise; },
+      done: promise.done, fail: promise.fail,
+    };
+  }
+
+  // A browser that refuses storage is the whole point of half these tests:
+  // private browsing leaves localStorage in place but makes setItem throw.
+  const storage = {
+    getItem(k) {
+      if (opts.readThrows) { throw new Error('storage read denied'); }
+      return k in store ? store[k] : null;
+    },
+    setItem(k, v) {
+      if (opts.writeThrows) { throw new Error('QuotaExceededError'); }
+      store[k] = String(v);
+    },
+  };
+
+  const jq = function () { return {}; };
+  jq.Deferred = deferred;
+  jq.ajax = function (o) { requested.push(o.url); inflight = deferred(); return inflight.promise(); };
+
+  const quiet = { warn() {}, log() {}, error() {}, debug() {}, info() {} };
+  const sandbox = {
+    window: { localStorage: storage, console: quiet },
+    $: jq, jQuery: jq, console: quiet, _: {}, moment: () => ({ format: () => '' }),
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(
+    fs.readFileSync(path.join(FLAVOR, '../../sa_web/static/js/utils.js'), 'utf8'),
+    sandbox, { filename: 'utils.js' });
+
+  return {
+    Util: sandbox.Shareabouts.Util,
+    store,
+    requested,
+    answer: text => inflight.resolve(text),
+    refuse: () => inflight.reject(),
+  };
+}
+
+const SHEET = 'name,lat,lng\nButwal Academic Institute,27.68463,83.45451';
+
+console.log('utils.getSheetCsv');
+check('the college sheet is fetched ONCE however many features want it', () => {
+  // The search box (map-view.js) and the college pins (custom.js) read the
+  // same published CSV. Each used to request it on its own, so every visitor
+  // waited out the same 1.2-2.8s third-party download twice over.
+  const u = loadUtils();
+  let a = null, b = null;
+  u.Util.getSheetCsv('SHEET_URL').done(t => { a = t; });
+  u.Util.getSheetCsv('SHEET_URL').done(t => { b = t; });
+  assert.strictEqual(u.requested.length, 1, 'expected one request, got ' + u.requested.length);
+  u.answer(SHEET);
+  assert.strictEqual(a, SHEET, 'first caller got nothing');
+  assert.strictEqual(b, SHEET, 'second caller got nothing');
+});
+check('two genuinely different sheets are still fetched separately', () => {
+  const u = loadUtils();
+  u.Util.getSheetCsv('ONE');
+  u.Util.getSheetCsv('TWO');
+  assert.strictEqual(u.requested.length, 2);
+});
+check('a good answer is kept for the next time Google will not talk', () => {
+  const u = loadUtils();
+  u.Util.getSheetCsv('SHEET_URL');
+  u.answer(SHEET);
+  assert.strictEqual(u.store['kkSheetCsv:SHEET_URL'], SHEET);
+});
+check('when the sheet fails, the last copy is used instead of no colleges', () => {
+  // Colleges are the only thing on the map until rooms arrive, and both call
+  // sites passed a success callback with no failure path at all - so a blip
+  // at Google made every college silently disappear with nothing said.
+  const u = loadUtils();
+  u.store['kkSheetCsv:SHEET_URL'] = SHEET;
+  let got = null, rejected = false;
+  u.Util.getSheetCsv('SHEET_URL').done(t => { got = t; }).fail(() => { rejected = true; });
+  u.refuse();
+  assert.strictEqual(got, SHEET, 'should have fallen back to the stored copy');
+  assert.strictEqual(rejected, false, 'must not report failure when a copy exists');
+});
+check('a first-ever visit during an outage reports failure, it does not hang', () => {
+  const u = loadUtils();
+  let rejected = false;
+  u.Util.getSheetCsv('SHEET_URL').done(() => {}).fail(() => { rejected = true; });
+  u.refuse();
+  assert.strictEqual(rejected, true, 'callers need to know so they can say so');
+});
+check('a browser that refuses to store still gets its sheet', () => {
+  const u = loadUtils({ writeThrows: true });
+  let got = null;
+  u.Util.getSheetCsv('SHEET_URL').done(t => { got = t; });
+  u.answer(SHEET);
+  assert.strictEqual(got, SHEET);
+});
+check('a browser that refuses to READ storage fails cleanly', () => {
+  const u = loadUtils({ readThrows: true });
+  let rejected = false;
+  u.Util.getSheetCsv('SHEET_URL').done(() => {}).fail(() => { rejected = true; });
+  u.refuse();
+  assert.strictEqual(rejected, true, 'a throwing read must not escape as an error');
+});
+
+console.log('utils.addMyPlaceId');
+check('a refusing browser does not throw when a room is saved', () => {
+  // This is the FIRST line of place-form-view's onSaveSuccess. An unguarded
+  // throw here skipped the redirect that follows it: the room was safely on
+  // the server, but the landlord sat looking at an unchanged form, so they
+  // pressed Save again and filed the room twice.
+  const u = loadUtils({ writeThrows: true });
+  u.Util.addMyPlaceId(42);
+});
+check('and the save flow still reaches its redirect', () => {
+  const u = loadUtils({ writeThrows: true });
+  let redirected = false;
+  (function onSaveSuccess() {      // same order as place-form-view.js
+    u.Util.addMyPlaceId(42);
+    redirected = true;
+  })();
+  assert.strictEqual(redirected, true, 'the redirect after the save must still run');
+});
+check('an ordinary browser still records the place', () => {
+  const u = loadUtils();
+  u.Util.addMyPlaceId(42);
+  assert.strictEqual(u.store['myPlaceIds'], '[42]');
+});
+check('the same place is not recorded twice', () => {
+  const u = loadUtils();
+  u.Util.addMyPlaceId(7);
+  u.Util.addMyPlaceId(7);
+  assert.strictEqual(u.store['myPlaceIds'], '[7]');
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

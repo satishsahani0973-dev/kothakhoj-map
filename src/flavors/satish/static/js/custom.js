@@ -1046,9 +1046,27 @@
       var app = window.app;
       var map = app && app.appView && app.appView.mapView && app.appView.mapView.map;
       if (!map || !window.L) { return; }
-      $.get(COLLEGES_CSV_URL).done(function(text) {
+      // Share the one sheet request with the search box in map-view.js, which
+      // reads the same published CSV. Each used to fetch it on its own, so
+      // every visitor paid for the same slow download twice. The fallback
+      // covers a partial deploy: getSheetCsv ships inside dist/preload.js,
+      // which is rsynced separately from this file.
+      var S = window.Shareabouts;
+      var fetchSheet = (S && S.Util && S.Util.getSheetCsv) ?
+        S.Util.getSheetCsv(COLLEGES_CSV_URL) :
+        $.get(COLLEGES_CSV_URL);
+
+      fetchSheet.done(function(text) {
         var colleges = KK.colleges.parseCsv(text);
         if (colleges.length) { addCollegeLayer(map, colleges); }
+      })
+      .fail(function() {
+        // Nothing from Google and nothing cached. Colleges are the only
+        // thing on the map until rooms arrive, so say so rather than leaving
+        // a blank map that looks broken.
+        if (window.console && window.console.warn) {
+          window.console.warn('College list unavailable; map is showing rooms only.');
+        }
       });
     }, 0);
   });
