@@ -55,33 +55,29 @@ map:
 
     # GeoJSON Layers
     # ==============
-    # District outlines. One file per district, all styled the same so the map
-    # reads as one coverage area rather than three separate shapes.
+    # The Rupandehi, Kaski and Chitwan district outlines used to be drawn here.
+    # Removed on purpose, for two reasons that are not speed:
     #
-    # butwal.geojson is misnamed - it is the whole of RUPANDEHI district, not
-    # Butwal municipality. Left as-is because the filename is baked into the
-    # deployed static bundle; renaming it buys nothing and risks a 404.
+    #   Nobody could see them. They were a 1px #444 line at 0.6 opacity with a
+    #   0.1 fill, over Mapbox's green terrain. Framed all three districts at
+    #   zoom 10, and sat on the Rupandehi boundary itself at zoom 12, and no
+    #   line was visible in either.
     #
-    # To add a district: fetch its OSM relation (admin_level 6 is a district in
-    # Nepal - search the DEVANAGARI name, the English one is only a secondary
-    # tag), simplify it, save it here, and add three lines below.
-    - url: /static/data/butwal.geojson
-      type: json
-      rules: &district-outline
-        - condition: 'true'
-          style:
-            color: "#444"
-            opacity: 0.6
-            fillOpacity: 0.1
-            weight: 1
-
-    - url: /static/data/kaski.geojson
-      type: json
-      rules: *district-outline
-
-    - url: /static/data/chitwan.geojson
-      type: json
-      rules: *district-outline
+    #   Two of the three promised something untrue. All 141 colleges in the
+    #   sheet are in Rupandehi - none in Kaski, none in Chitwan - so those
+    #   outlines drew a coverage area that does not exist.
+    #
+    # NOT removed for performance, whatever it looks like. Measured: the three
+    # outlines cost 0.2ms when a zoom settles, against 0.3ms for the college
+    # markers and 2.1ms for their labels. Leaflet draws them as three SVG paths
+    # and slides them with one CSS transform; they were the cheapest thing on
+    # the map. Anyone hoping this fixes pinch-zoom should read the note in
+    # custom.js about mapbox-gl-leaflet's _pinchZoom instead.
+    #
+    # The .geojson files are gone too, since nothing else referenced them.
+    # To bring a district back: git checkout the file from before this commit,
+    # then re-add three lines here - url, `type: json`, and a rules block. Give
+    # it a much stronger colour than last time, or it will be invisible again.
 
 # The keys show up in the dropdown list when you are adding a new place
 # The values map the place type to map icons (defined below).
