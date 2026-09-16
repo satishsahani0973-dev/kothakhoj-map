@@ -53,12 +53,20 @@
   };
 
   // ---- Nepali months ------------------------------------------------------
-  // Bikram Sambat month starts, as AD dates. Generated from the
-  // nepali-datetime library and cross-checked against a published
-  // festival date (Ghatasthapana = Ashoj 25, 2083 = Sun 11 Oct 2026).
-  // BS month lengths vary year to year and cannot be computed, so this
-  // table is the only source of truth. It ends at 2029-11-16 — regenerate
-  // before then, or 'Pick a month' quietly runs out of chips.
+  // Bikram Sambat month starts, as AD dates. BS month lengths vary from year
+  // to year and cannot be computed, so a table is the only way.
+  //
+  // THIS IS A COPY. The original lives in the API repo, in
+  // sa_api_v2/availability.py (BS_MONTH_STARTS), and the API is what writes
+  // free_ts onto a place. If the two ever disagree, a room reads as one month
+  // here and another there. Regenerate from that table rather than editing
+  // rows by hand; kk-tests checks the two still match whenever both repos are
+  // checked out side by side.
+  //
+  // Cross-checked against a published festival date: Ghatasthapana 2083 =
+  // Ashoj 25 = Sunday 11 Oct 2026, 24 days after the Ashoj 1 below.
+  // Covers 2026-08-17 to 2039-03-16. kk-tests starts failing well
+  // before that runs out, so this does not have to be remembered.
   KK.bsMonths = [
     { m: 'Bhadra', y: 2083, ad: '2026-08-17' },
     { m: 'Ashoj', y: 2083, ad: '2026-09-17' },
@@ -99,7 +107,119 @@
     { m: 'Bhadra', y: 2086, ad: '2029-08-17' },
     { m: 'Ashoj', y: 2086, ad: '2029-09-17' },
     { m: 'Kartik', y: 2086, ad: '2029-10-17' },
-    { m: 'Mangsir', y: 2086, ad: '2029-11-16' }
+    { m: 'Mangsir', y: 2086, ad: '2029-11-16' },
+    { m: 'Poush', y: 2086, ad: '2029-12-16' },
+    { m: 'Magh', y: 2086, ad: '2030-01-14' },
+    { m: 'Falgun', y: 2086, ad: '2030-02-13' },
+    { m: 'Chaitra', y: 2086, ad: '2030-03-15' },
+    { m: 'Baisakh', y: 2087, ad: '2030-04-14' },
+    { m: 'Jestha', y: 2087, ad: '2030-05-15' },
+    { m: 'Ashar', y: 2087, ad: '2030-06-15' },
+    { m: 'Shrawan', y: 2087, ad: '2030-07-17' },
+    { m: 'Bhadra', y: 2087, ad: '2030-08-17' },
+    { m: 'Ashoj', y: 2087, ad: '2030-09-17' },
+    { m: 'Kartik', y: 2087, ad: '2030-10-18' },
+    { m: 'Mangsir', y: 2087, ad: '2030-11-17' },
+    { m: 'Poush', y: 2087, ad: '2030-12-16' },
+    { m: 'Magh', y: 2087, ad: '2031-01-15' },
+    { m: 'Falgun', y: 2087, ad: '2031-02-14' },
+    { m: 'Chaitra', y: 2087, ad: '2031-03-16' },
+    { m: 'Baisakh', y: 2088, ad: '2031-04-15' },
+    { m: 'Jestha', y: 2088, ad: '2031-05-15' },
+    { m: 'Ashar', y: 2088, ad: '2031-06-15' },
+    { m: 'Shrawan', y: 2088, ad: '2031-07-17' },
+    { m: 'Bhadra', y: 2088, ad: '2031-08-18' },
+    { m: 'Ashoj', y: 2088, ad: '2031-09-17' },
+    { m: 'Kartik', y: 2088, ad: '2031-10-18' },
+    { m: 'Mangsir', y: 2088, ad: '2031-11-17' },
+    { m: 'Poush', y: 2088, ad: '2031-12-17' },
+    { m: 'Magh', y: 2088, ad: '2032-01-15' },
+    { m: 'Falgun', y: 2088, ad: '2032-02-14' },
+    { m: 'Chaitra', y: 2088, ad: '2032-03-15' },
+    { m: 'Baisakh', y: 2089, ad: '2032-04-14' },
+    { m: 'Jestha', y: 2089, ad: '2032-05-14' },
+    { m: 'Ashar', y: 2089, ad: '2032-06-15' },
+    { m: 'Shrawan', y: 2089, ad: '2032-07-16' },
+    { m: 'Bhadra', y: 2089, ad: '2032-08-17' },
+    { m: 'Ashoj', y: 2089, ad: '2032-09-17' },
+    { m: 'Kartik', y: 2089, ad: '2032-10-17' },
+    { m: 'Mangsir', y: 2089, ad: '2032-11-16' },
+    { m: 'Poush', y: 2089, ad: '2032-12-16' },
+    { m: 'Magh', y: 2089, ad: '2033-01-14' },
+    { m: 'Falgun', y: 2089, ad: '2033-02-13' },
+    { m: 'Chaitra', y: 2089, ad: '2033-03-15' },
+    { m: 'Baisakh', y: 2090, ad: '2033-04-14' },
+    { m: 'Jestha', y: 2090, ad: '2033-05-14' },
+    { m: 'Ashar', y: 2090, ad: '2033-06-15' },
+    { m: 'Shrawan', y: 2090, ad: '2033-07-16' },
+    { m: 'Bhadra', y: 2090, ad: '2033-08-17' },
+    { m: 'Ashoj', y: 2090, ad: '2033-09-17' },
+    { m: 'Kartik', y: 2090, ad: '2033-10-17' },
+    { m: 'Mangsir', y: 2090, ad: '2033-11-16' },
+    { m: 'Poush', y: 2090, ad: '2033-12-16' },
+    { m: 'Magh', y: 2090, ad: '2034-01-14' },
+    { m: 'Falgun', y: 2090, ad: '2034-02-13' },
+    { m: 'Chaitra', y: 2090, ad: '2034-03-15' },
+    { m: 'Baisakh', y: 2091, ad: '2034-04-14' },
+    { m: 'Jestha', y: 2091, ad: '2034-05-15' },
+    { m: 'Ashar', y: 2091, ad: '2034-06-15' },
+    { m: 'Shrawan', y: 2091, ad: '2034-07-17' },
+    { m: 'Bhadra', y: 2091, ad: '2034-08-17' },
+    { m: 'Ashoj', y: 2091, ad: '2034-09-17' },
+    { m: 'Kartik', y: 2091, ad: '2034-10-18' },
+    { m: 'Mangsir', y: 2091, ad: '2034-11-17' },
+    { m: 'Poush', y: 2091, ad: '2034-12-17' },
+    { m: 'Magh', y: 2091, ad: '2035-01-15' },
+    { m: 'Falgun', y: 2091, ad: '2035-02-14' },
+    { m: 'Chaitra', y: 2091, ad: '2035-03-16' },
+    { m: 'Baisakh', y: 2092, ad: '2035-04-15' },
+    { m: 'Jestha', y: 2092, ad: '2035-05-15' },
+    { m: 'Ashar', y: 2092, ad: '2035-06-15' },
+    { m: 'Shrawan', y: 2092, ad: '2035-07-17' },
+    { m: 'Bhadra', y: 2092, ad: '2035-08-18' },
+    { m: 'Ashoj', y: 2092, ad: '2035-09-18' },
+    { m: 'Kartik', y: 2092, ad: '2035-10-18' },
+    { m: 'Mangsir', y: 2092, ad: '2035-11-17' },
+    { m: 'Poush', y: 2092, ad: '2035-12-17' },
+    { m: 'Magh', y: 2092, ad: '2036-01-15' },
+    { m: 'Falgun', y: 2092, ad: '2036-02-14' },
+    { m: 'Chaitra', y: 2092, ad: '2036-03-15' },
+    { m: 'Baisakh', y: 2093, ad: '2036-04-14' },
+    { m: 'Jestha', y: 2093, ad: '2036-05-14' },
+    { m: 'Ashar', y: 2093, ad: '2036-06-15' },
+    { m: 'Shrawan', y: 2093, ad: '2036-07-16' },
+    { m: 'Bhadra', y: 2093, ad: '2036-08-17' },
+    { m: 'Ashoj', y: 2093, ad: '2036-09-17' },
+    { m: 'Kartik', y: 2093, ad: '2036-10-17' },
+    { m: 'Mangsir', y: 2093, ad: '2036-11-16' },
+    { m: 'Poush', y: 2093, ad: '2036-12-16' },
+    { m: 'Magh', y: 2093, ad: '2037-01-14' },
+    { m: 'Falgun', y: 2093, ad: '2037-02-13' },
+    { m: 'Chaitra', y: 2093, ad: '2037-03-15' },
+    { m: 'Baisakh', y: 2094, ad: '2037-04-14' },
+    { m: 'Jestha', y: 2094, ad: '2037-05-15' },
+    { m: 'Ashar', y: 2094, ad: '2037-06-15' },
+    { m: 'Shrawan', y: 2094, ad: '2037-07-17' },
+    { m: 'Bhadra', y: 2094, ad: '2037-08-17' },
+    { m: 'Ashoj', y: 2094, ad: '2037-09-17' },
+    { m: 'Kartik', y: 2094, ad: '2037-10-17' },
+    { m: 'Mangsir', y: 2094, ad: '2037-11-16' },
+    { m: 'Poush', y: 2094, ad: '2037-12-16' },
+    { m: 'Magh', y: 2094, ad: '2038-01-14' },
+    { m: 'Falgun', y: 2094, ad: '2038-02-13' },
+    { m: 'Chaitra', y: 2094, ad: '2038-03-15' },
+    { m: 'Baisakh', y: 2095, ad: '2038-04-14' },
+    { m: 'Jestha', y: 2095, ad: '2038-05-15' },
+    { m: 'Ashar', y: 2095, ad: '2038-06-15' },
+    { m: 'Shrawan', y: 2095, ad: '2038-07-17' },
+    { m: 'Bhadra', y: 2095, ad: '2038-08-17' },
+    { m: 'Ashoj', y: 2095, ad: '2038-09-17' },
+    { m: 'Kartik', y: 2095, ad: '2038-10-18' },
+    { m: 'Mangsir', y: 2095, ad: '2038-11-17' },
+    { m: 'Poush', y: 2095, ad: '2038-12-16' },
+    { m: 'Magh', y: 2095, ad: '2039-01-15' },
+    { m: 'Falgun', y: 2095, ad: '2039-02-14' },
+    { m: 'Chaitra', y: 2095, ad: '2039-03-16' },
   ];
 
   // Midnight in NEPAL of a 'YYYY-MM-DD' string.

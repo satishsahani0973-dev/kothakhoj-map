@@ -128,6 +128,62 @@ check('cross-checked against a published festival date', () => {
   assert.strictEqual(day25.getUTCMonth(), 9);
   assert.strictEqual(day25.getUTCDay(), 0); // Sunday
 });
+check('the month table still reaches comfortably past today', () => {
+  // A deliberate alarm clock, not an ordinary assertion.
+  //
+  // BS month lengths cannot be computed, so KK.bsMonths is a fixed table with
+  // an end. When today passes that end, "Pick a month" simply stops offering
+  // chips - no error, nothing in the console, just an empty row that nobody
+  // would connect to a table written years earlier.
+  //
+  // So fail here first, while there is still over a year of runway, with the
+  // instructions attached. This test is MEANT to fail one day.
+  const RUNWAY_MONTHS = 18;
+  const last = KK.bsMonths[KK.bsMonths.length - 1];
+  const lastTs = KK.bsTs(last.ad);
+  const deadline = Date.now() + RUNWAY_MONTHS * 30 * 86400000;
+  assert.ok(lastTs > deadline,
+    '\n\n    The Nepali month table runs out on ' + last.ad + ' (' + last.m + ' ' +
+    last.y + ').\n' +
+    '    Once today passes it, the "when will the room be free?" month chips\n' +
+    '    go silently empty.\n\n' +
+    '    To fix: regenerate BS_MONTH_STARTS in the API repo\n' +
+    '    (src/sa_api_v2/availability.py) with the nepali-datetime library,\n' +
+    '    then copy it into KK.bsMonths here. Both must cover the same range.\n');
+});
+check('this copy of the table matches the API, which is the original', () => {
+  // The API writes free_ts onto a place and this decides what the student
+  // reads. If the two tables drift, a room says one month here and another
+  // there, and nothing would announce it.
+  //
+  // Only runs when both repos are checked out side by side, which is how the
+  // one person who maintains them works. Elsewhere it reports that it could
+  // not look, rather than passing quietly and meaning nothing.
+  const apiFile = path.join(
+    FLAVOR, '../../../../shareabouts-api/src/sa_api_v2/availability.py');
+  if (!fs.existsSync(apiFile)) {
+    console.log('       (skipped: API repo not checked out beside this one)');
+    return;
+  }
+  const re = /\('([A-Za-z]+)',\s*(\d{4}),\s*'(\d{4}-\d{2}-\d{2})'\)/g;
+  const api = new Map();
+  let m;
+  while ((m = re.exec(fs.readFileSync(apiFile, 'utf8')))) {
+    api.set(m[1] + ' ' + m[2], m[3]);
+  }
+  assert.ok(api.size > 0, 'could not read BS_MONTH_STARTS out of the API file');
+
+  const mismatched = KK.bsMonths
+    .filter(mo => api.has(mo.m + ' ' + mo.y) && api.get(mo.m + ' ' + mo.y) !== mo.ad)
+    .map(mo => mo.m + ' ' + mo.y + ': js=' + mo.ad + ' api=' + api.get(mo.m + ' ' + mo.y));
+  assert.strictEqual(mismatched.join(', '), '', 'tables disagree');
+
+  const missing = [...api.keys()].filter(
+    k => !KK.bsMonths.some(mo => mo.m + ' ' + mo.y === k));
+  assert.strictEqual(missing.length, 0,
+    missing.length + ' month(s) are in the API table but not in this one, ' +
+    'starting at ' + missing[0] + ' - regenerate KK.bsMonths from it');
+});
 check('bsUpcoming returns only months still ahead', () => {
   const from = new Date(2026, 9, 20); // 20 Oct 2026, inside Kartik 2083
   const up = KK.bsUpcoming(4, from);
