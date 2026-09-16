@@ -442,6 +442,28 @@ body.signin-gate #list-container {
     height: 100vh;
     min-height: 300px;
   }
+
+  /* Stock Shareabouts pins #map to 325px whenever a panel is open, and the
+     rule above that stretches it only fires when NO panel is open. So the
+     sign-in panel started 381px down and ran 256px past the bottom of the
+     screen: every way of signing in - Scan, Upload, even the password button -
+     was below the fold on a 375x812 phone.
+     The map is not what you are looking at while you sign in, so it stands
+     down for this one panel and the panel starts right under the header.
+     Nothing in the panel changes size; it just gets the room it needed. */
+  body.signin-screen #map-container {
+    display: none;
+  }
+  /* The pink ✕ is absolutely positioned 26px ABOVE the panel, because it was
+     drawn to float over the map. Take the map away and it lands inside the
+     site header, on top of the hamburger. So the panel opens a strip of its
+     own for it to sit in - 34px, which the panel can afford now. */
+  body.signin-screen #content {
+    padding-top: 34px;
+  }
+  body.signin-screen a.close-btn {
+    top: 4px;
+  }
 }
 
 /* Directions keep only the line + the bottom card: the turn-by-turn text
@@ -811,6 +833,86 @@ body.signin-gate #list-container {
 }
 .signin-scanner-cancel {
   margin-top: 6px;
+}
+.signin-scanner-stage {
+  position: relative;
+}
+.signin-scanner-guide {
+  display: none;
+}
+
+/* The camera used to open as a small box in the page flow, after the form and
+   both buttons. On a 375x812 phone that put it 146px BELOW the bottom of the
+   screen, and the code hides the Scan button at the same moment - so the
+   button vanished, the page got shorter, and nothing visible happened. Tapping
+   Scan now fills the screen, the way every scanner people already use works. */
+.signin-scanner.is-scanning {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  margin: 0;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+}
+.signin-scanner.is-scanning .signin-scanner-hint {
+  flex: none;
+  margin: 0;
+  padding: 18px 16px 12px;
+  font-size: 15px;
+  color: #fff;
+}
+.signin-scanner.is-scanning .signin-scanner-stage {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.signin-scanner.is-scanning .signin-scanner-video {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  object-fit: cover;
+}
+/* The square the decoder actually reads. Cropping to the middle of the frame
+   is what makes it lock on fast, so the box has to show where that is -
+   otherwise people hold the card in a corner and wonder why nothing happens. */
+.signin-scanner.is-scanning .signin-scanner-guide {
+  display: block;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 62vw;
+  height: 62vw;
+  max-width: 280px;
+  max-height: 280px;
+  transform: translate(-50%, -50%);
+  border: 3px solid #fff;
+  border-radius: 12px;
+  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+.signin-scanner.is-scanning .signin-scanner-cancel {
+  flex: none;
+  margin: 0;
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 0;
+  padding: 16px;
+  font-size: 16px;
+  font-weight: bold;
+  background: #000;
+  color: #fff;
+}
+/* #content carries z-index 10, and a positioned element with a z-index starts
+   its own stacking context - so the overlay's z-index 1000 was being compared
+   against its siblings INSIDE #content, not against the site header at 40. The
+   header painted straight over the top of the camera, hiding the hint line.
+   Lifting #content for the duration is enough; the overlay covers the header
+   rather than the header having to be taken down and put back. */
+body.kk-scanning #content {
+  z-index: 1001;
 }
 .signin-logout {
   margin-top: 10px;

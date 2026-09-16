@@ -35,7 +35,10 @@
 
     <div class="signin-scanner is-hidden">
       <p class="signin-scanner-hint">{{#_}}Show your card to the camera{{/_}}</p>
-      <video class="signin-scanner-video" playsinline muted></video>
+      <div class="signin-scanner-stage">
+        <video class="signin-scanner-video" playsinline muted></video>
+        <span class="signin-scanner-guide"></span>
+      </div>
       <button type="button" class="btn btn-block signin-scanner-cancel">{{#_}}Cancel{{/_}}</button>
     </div>
 

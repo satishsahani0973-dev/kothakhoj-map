@@ -603,6 +603,46 @@
     $('body').removeClass('signin-gate');
   });
 
+  // ---- Sign-in panel: the map stands down ---------------------------------
+  // See the note on body.signin-screen in custom.css. The panel is taller than
+  // a phone screen, and stock Shareabouts parks a 325px map above it, so every
+  // way of signing in sat below the fold. The CSS hides the map for this one
+  // panel; this decides when that is true.
+  KK.signinScreen = {
+    // Pure: is the sign-in panel the thing on screen right now? Both halves
+    // matter - .signin-page lingers in the DOM for a moment after the panel
+    // is dismissed, and content-visible alone is true for every other panel.
+    shouldHideMap: function(contentVisible, hasSigninPage) {
+      return !!(contentVisible && hasSigninPage);
+    }
+  };
+
+  $(function() {
+    var $body = $('body');
+    function sync() {
+      var want = KK.signinScreen.shouldHideMap(
+        $body.hasClass('content-visible'),
+        !!document.querySelector('.signin-page'));
+      // Only write when it actually changes: this runs from an observer that
+      // watches body's class, so an unconditional write would retrigger it.
+      if (want === $body.hasClass('signin-screen')) { return; }
+      $body.toggleClass('signin-screen', want);
+    }
+    if (window.MutationObserver) {
+      // Body's class tells us a panel opened or closed; #content's children
+      // tell us one panel was swapped for another without either flag moving.
+      new window.MutationObserver(sync).observe(document.body, {
+        attributes: true, attributeFilter: ['class']
+      });
+      var content = document.getElementById('content');
+      if (content) {
+        new window.MutationObserver(sync).observe(content, { childList: true });
+      }
+    }
+    $(window).on('popstate hashchange', function() { setTimeout(sync, 0); });
+    sync();
+  });
+
   // ---- Location engine ----------------------------------------------------
   // One GPS engine for the whole site: the My Location button and the
   // add-place flow share it. It watches the GPS for a few seconds (readings
@@ -859,6 +899,33 @@
       if (m) { return m[1]; }
       if (/^[A-Za-z0-9_-]{16,}$/.test(text.trim())) { return text.trim(); }
       return null;
+    },
+
+    // Pure: which part of the camera frame to decode, and how far to shrink
+    // it. Returns null while the video has no dimensions yet.
+    //
+    // The old loop pushed the WHOLE frame through jsQR four times a second -
+    // often 1280x720, sometimes 1920x1080 - which is most of a million pixels
+    // of work per pass on a phone that is also running the map. It only ever
+    // needed the middle: a QR has to be square-on and reasonably large to
+    // decode at all, so the corners of a wide frame never hold the answer.
+    //
+    // The square returned here is the largest that fits the frame, centred,
+    // which is what the white box on screen is drawn around - so whatever the
+    // student lines up inside that box is always inside what we read. 400px
+    // is far more than a QR needs (roughly 3 pixels per module, and a login
+    // card is about 25 modules across).
+    frame: function(videoWidth, videoHeight, maxSide) {
+      var vw = Math.max(0, videoWidth || 0);
+      var vh = Math.max(0, videoHeight || 0);
+      var side = Math.min(vw, vh);
+      if (!side) { return null; }
+      return {
+        sx: Math.round((vw - side) / 2),
+        sy: Math.round((vh - side) / 2),
+        side: side,
+        target: Math.min(maxSide || 400, side)
+      };
     }
   };
 
@@ -869,10 +936,14 @@
       scannerStream.getTracks().forEach(function(track) { track.stop(); });
       scannerStream = null;
     }
-    // Callers that just want the camera off (a panel closing) need not know
-    // which panel it was.
+    // The overlay is position:fixed while scanning. If it ever outlived its
+    // panel it would cover the entire screen with nothing behind it, so the
+    // class comes off everywhere rather than only inside the panel we were
+    // handed - callers that just want the camera off (a panel closing) need
+    // not know which panel it was.
+    $('.signin-scanner').addClass('is-hidden').removeClass('is-scanning');
+    $('body').removeClass('kk-scanning');
     if (!$panel || !$panel.length) { $panel = $('.signin-page'); }
-    $panel.find('.signin-scanner').addClass('is-hidden');
     $panel.find('.signin-scan').removeClass('is-hidden');
   }
 
@@ -883,16 +954,23 @@
     function tick() {
       if (!scannerStream) { return; }
       if (video.readyState === video.HAVE_ENOUGH_DATA && window.jsQR) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        var image = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        var code = window.jsQR(image.data, image.width, image.height);
-        var token = code && KK.qr.extractToken(code.data);
-        if (token) {
-          stopScanner($panel);
-          window.location = '/qr/' + token;
-          return;
+        var box = KK.qr.frame(video.videoWidth, video.videoHeight);
+        if (box) {
+          canvas.width = box.target;
+          canvas.height = box.target;
+          ctx.drawImage(video, box.sx, box.sy, box.side, box.side,
+                               0, 0, box.target, box.target);
+          var image = ctx.getImageData(0, 0, box.target, box.target);
+          var code = window.jsQR(image.data, image.width, image.height);
+          var token = code && KK.qr.extractToken(code.data);
+          if (token) {
+            // A card that reads instantly and then jumps to another page
+            // feels like a misfire. One short buzz says "that worked".
+            if (navigator.vibrate) { navigator.vibrate(60); }
+            stopScanner($panel);
+            window.location = '/qr/' + token;
+            return;
+          }
         }
       }
       setTimeout(tick, 250);
@@ -908,25 +986,48 @@
     }
     var staticUrl = (window.Shareabouts && window.Shareabouts.bootstrapped &&
                      window.Shareabouts.bootstrapped.staticUrl) || '/static/';
-    $.getScript(staticUrl + 'libs/jsQR.js').always(function() {
-      if (!window.jsQR) {
-        alert('Could not start the scanner. Please type your username and password.');
-        return;
-      }
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-        .then(function(stream) {
-          scannerStream = stream;
-          var video = $panel.find('.signin-scanner-video')[0];
-          video.srcObject = stream;
-          video.play();
-          $panel.find('.signin-scan').addClass('is-hidden');
-          $panel.find('.signin-scanner').removeClass('is-hidden');
+    // Both start now, on purpose. The old order downloaded jsQR first (57KB
+    // gzipped) and only THEN asked for the camera, so on Butwal mobile data
+    // you tapped Scan and watched nothing happen for a second or two. Asking
+    // for the camera immediately puts the permission prompt up at once, and
+    // the decoder lands while the card is still being lined up.
+    var decoderReady = $.getScript(staticUrl + 'libs/jsQR.js');
+
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      .then(function(stream) {
+        scannerStream = stream;
+        var video = $panel.find('.signin-scanner-video')[0];
+        video.srcObject = stream;
+        video.play();
+        $panel.find('.signin-scan').addClass('is-hidden');
+        $panel.find('.signin-scanner')
+          .removeClass('is-hidden')
+          .addClass('is-scanning');
+        // Lifts #content over the site header; see body.kk-scanning in the CSS.
+        $('body').addClass('kk-scanning');
+        decoderReady.always(function() {
+          // Nothing to decode with: take the camera back down rather than
+          // leaving a full-screen black window the Cancel button is the
+          // only way out of.
+          if (!window.jsQR) {
+            stopScanner($panel);
+            alert('Could not start the scanner. Please type your username and password.');
+            return;
+          }
           scanLoop(video, $panel);
-        })
-        .catch(function() {
-          alert('Camera permission was refused. Scan the card with your phone camera instead, or type your username and password.');
         });
-    });
+      })
+      .catch(function() {
+        alert('Camera permission was refused. Scan the card with your phone camera instead, or type your username and password.');
+      });
+  });
+
+  // Escape closes the full-screen camera. Android's Back button is already
+  // covered by the panel watcher above, which calls stopScanner when the
+  // panel stops being visible.
+  $(document).on('keydown', function(e) {
+    if (e.key !== 'Escape' && e.keyCode !== 27) { return; }
+    if ($('.signin-scanner.is-scanning').length) { stopScanner(null); }
   });
 
   $(document).on('click', '.signin-scanner-cancel', function() {

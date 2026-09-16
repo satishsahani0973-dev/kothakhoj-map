@@ -365,6 +365,51 @@ check('random QR content -> null (never navigate to strange QRs)', () => {
   assert.strictEqual(KK.qr.extractToken('/qr/short'), null);
 });
 
+// ---- QR decode window ----
+// The scanner reads the middle square of the frame, not the whole frame, and
+// shrinks it before decoding. The white box on screen is drawn around the same
+// square, so whatever is inside the box is always inside what we read.
+console.log('qr.frame');
+check('landscape frame -> centred square, cropped sideways', () => {
+  const f = KK.qr.frame(1280, 720);
+  assert.strictEqual(f.side, 720);
+  assert.strictEqual(f.sy, 0);
+  assert.strictEqual(f.sx, 280);          // (1280 - 720) / 2
+});
+check('portrait frame -> centred square, cropped vertically', () => {
+  const f = KK.qr.frame(720, 1280);
+  assert.strictEqual(f.side, 720);
+  assert.strictEqual(f.sx, 0);
+  assert.strictEqual(f.sy, 280);
+});
+check('big frames shrink to the cap, small frames are left alone', () => {
+  assert.strictEqual(KK.qr.frame(1920, 1080).target, 400);
+  assert.strictEqual(KK.qr.frame(320, 240).target, 240);   // never upscale
+  assert.strictEqual(KK.qr.frame(1920, 1080, 250).target, 250);
+});
+check('decoding 1080p full-frame was ~13x the pixels of the cropped square', () => {
+  const f = KK.qr.frame(1920, 1080);
+  assert.strictEqual(Math.round((1920 * 1080) / (f.target * f.target)), 13);
+});
+check('a video with no dimensions yet -> null, not a zero-size canvas', () => {
+  assert.strictEqual(KK.qr.frame(0, 0), null);
+  assert.strictEqual(KK.qr.frame(undefined, undefined), null);
+  assert.strictEqual(KK.qr.frame(640, 0), null);
+});
+
+// ---- sign-in panel hides the map ----
+// The panel is taller than a phone screen and stock Shareabouts parks a 325px
+// map above it, pushing every way of signing in below the fold.
+console.log('signinScreen.shouldHideMap');
+check('sign-in panel open -> hide the map', () =>
+  assert.strictEqual(KK.signinScreen.shouldHideMap(true, true), true));
+check('some other panel open -> leave the map alone', () =>
+  assert.strictEqual(KK.signinScreen.shouldHideMap(true, false), false));
+check('panel dismissed but markup still in the DOM -> map comes back', () =>
+  assert.strictEqual(KK.signinScreen.shouldHideMap(false, true), false));
+check('plain map view -> map stays', () =>
+  assert.strictEqual(KK.signinScreen.shouldHideMap(false, false), false));
+
 // ---- colleges CSV parsing ----
 console.log('colleges.parseCsv');
 check('parses name/lat/lng rows', () => {
