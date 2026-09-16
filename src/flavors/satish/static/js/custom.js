@@ -901,9 +901,15 @@
 
     $.ajax({ url: '/login/', method: 'POST', data: $form.serialize() })
       .done(function() { window.location.href = '/'; })
-      .fail(function() {
+      .fail(function(xhr) {
         $btn.prop('disabled', false).text($btn.data('label') || 'Sign in');
-        injectSigninError('Wrong username or password. Please try again.');
+        // The server sends its own wording only when the reason is something
+        // the person can act on - currently just "too many wrong passwords,
+        // wait a few minutes". Telling them that instead of "wrong password"
+        // is the whole point: otherwise they keep trying a password that is
+        // not being checked at all.
+        var said = xhr && xhr.responseJSON && xhr.responseJSON.error;
+        injectSigninError(said || 'Wrong username or password. Please try again.');
       });
   });
 

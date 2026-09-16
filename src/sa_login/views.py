@@ -40,6 +40,10 @@ def login(request: HttpRequest):
 
     api_user = ''
     error_str = ''
+    # The API's status and its own wording for the failure, where it gave one.
+    # Kept separate from error_str, which is the full-page version.
+    api_status = None
+    api_message = ''
 
     # GET the current user session from the API
     if request.method == 'GET':
@@ -55,6 +59,13 @@ def login(request: HttpRequest):
             print('Successfully logged in to the API session.')
         except ShareaboutsApiError as exc:
             error_str = f'Login failed. {"; ".join(exc.errors.values()) if exc.errors else "Please try again."}'
+            api_status = exc.status
+            # Only the brute-force limit is worth repeating verbatim: every
+            # other failure here is "invalid username or password", and
+            # echoing the API's phrasing for those would risk telling a
+            # guesser something the generic message deliberately does not.
+            if exc.status == 429 and exc.errors:
+                api_message = '; '.join(exc.errors.values())
             print('Failed to log in to the API session:', exc)
         next_url = request.POST.get('next', None)
 
@@ -72,8 +83,21 @@ def login(request: HttpRequest):
 
     # The map's sign-in panel posts in the background: answer yes/no as JSON
     # so a wrong password never forces a full map reload.
+    #
+    # Carry the API's own status and wording when it refused for a reason the
+    # person can act on. This used to flatten everything to a bare 401, so
+    # someone who had hit the brute-force limit was told their password was
+    # wrong and simply kept trying - the one thing the limit's wording was
+    # written to prevent.
     if request.method == 'POST' and request.headers.get('x-requested-with') == 'XMLHttpRequest':
-        response = JsonResponse({'ok': bool(api_user)}, status=200 if api_user else 401)
+        if api_user:
+            payload, status = {'ok': True}, 200
+        else:
+            status = api_status if api_status == 429 else 401
+            payload = {'ok': False}
+            if api_message:
+                payload['error'] = api_message
+        response = JsonResponse(payload, status=status)
         return api.respond_with_session_cookie(response)
 
     if api_user and next_url:

@@ -64,9 +64,15 @@ API_TIMEOUT = (3.05, 10)
 
 
 class ShareaboutsApiError (Exception):
-    def __init__(self, msg, errors):
+    def __init__(self, msg, errors, status=None):
         super().__init__(msg)
         self.errors = errors
+        # The API's own status code, where there was one. The sign-in panel
+        # needs to tell a wrong password (401) apart from "too many wrong
+        # passwords, wait a few minutes" (429) - without this every failure
+        # looked identical to the person typing, so someone who had hit the
+        # limit just kept trying and being told their password was wrong.
+        self.status = status
 
 
 class ShareaboutsApi:
@@ -163,7 +169,7 @@ class ShareaboutsApi:
                 errors = res.json().get('errors')
             except ValueError:
                 errors = None
-            raise ShareaboutsApiError(res.text, errors)
+            raise ShareaboutsApiError(res.text, errors, status=res.status_code)
 
     def qr_login(self, token, **kwargs):
         """
