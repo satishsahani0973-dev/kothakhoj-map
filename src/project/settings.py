@@ -373,6 +373,33 @@ if not SECRET_KEY:
 
 
 ##############################################################################
+# Cookie security
+# ---------------
+# These sit AFTER local_settings is read, because that is where DEBUG gets
+# its real value; higher up the file it is still the True on line 9 and every
+# one of these would quietly evaluate to False.
+#
+# sa-web-session carries ownership of the rooms a person has added, and it
+# lasts 400 days (SESSION_COOKIE_AGE above). Without Secure it can be sent
+# over plain HTTP, and there is no HSTS to stop a first request on a new
+# network going out that way.
+#
+# Not applied in development: that runs on http://127.0.0.1:8080, where a
+# Secure cookie is simply never sent back, so you would be signed out of your
+# own dev server with nothing to explain why.
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+
+# CSRF_COOKIE_HTTPONLY is deliberately left at its default of False. The map
+# reads this cookie from JavaScript - sa_web/static/js/models.js:473 sets the
+# X-CSRFToken header from it, and the flavor's custom.js reads it twice more -
+# so making it HttpOnly would stop a landlord being able to save a room.
+#
+# SESSION_COOKIE_HTTPONLY is already True by default, and sa-web-session is
+# never read from JavaScript, so it stays that way.
+
+
+##############################################################################
 # Flavor defaults
 # ---------------
 # By default, the flavor is assumed to be a local python package.  If no

@@ -216,11 +216,31 @@ class ShareaboutsApi:
 
     def respond_with_session_cookie(self, response: HttpResponse):
         if self.sessioninfo:
-            response.set_cookie('sa-api-sessionid', self.sessioninfo['id'])
-            response.set_cookie('sa-api-sessiondomain', self.sessioninfo['domain'])
+            # These two are set by hand rather than by Django's session
+            # machinery, so SESSION_COOKIE_SECURE does not reach them and they
+            # went out with no flags at all. sa-api-sessionid IS the API
+            # session - whoever holds it is signed in as that account.
+            #
+            # httponly because nothing in the browser reads either of them:
+            # they are sent straight back to this server, which forwards them
+            # to the API (sa_web/views.py reads them from request.COOKIES).
+            # samesite Lax matches what browsers already assume when the
+            # attribute is absent, written down so it cannot drift.
+            cookie_flags = {
+                'secure': settings.SESSION_COOKIE_SECURE,
+                'httponly': True,
+                'samesite': 'Lax',
+            }
+            response.set_cookie('sa-api-sessionid', self.sessioninfo['id'], **cookie_flags)
+            response.set_cookie('sa-api-sessiondomain', self.sessioninfo['domain'], **cookie_flags)
             print(f'Updating session cookie: {self.sessioninfo}')
         else:
-            response.delete_cookie('sa-api-sessionid')
-            response.delete_cookie('sa-api-sessiondomain')
+            # Delete with the same samesite the set branch uses. A cookie is
+            # identified by name, domain and path, so this clears it either
+            # way, but matching attributes keeps browsers from warning and
+            # stops the two branches drifting apart later. Django works out
+            # `secure` for a deletion itself and takes no argument for it.
+            response.delete_cookie('sa-api-sessionid', samesite='Lax')
+            response.delete_cookie('sa-api-sessiondomain', samesite='Lax')
             print('Deleting session cookie')
         return response
