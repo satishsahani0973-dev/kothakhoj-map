@@ -1154,3 +1154,75 @@ body.kk-directions .kk-legend { display: none; }
 .kk-filter-chip-clear:focus { background: rgba(255,255,255,.4); color: #fff; }
 /* The directions flow takes over the screen; the chip must not sit on it. */
 body.kk-directions .kk-filter-chip { display: none; }
+
+/* A confirmation that fits the screen.
+   See KK.confirm in custom.js for why this is attached to <body> rather than
+   inside #content. z-index above the site header (40) and the route card, but
+   below the full-screen scanner (1000), which is the only thing that should
+   ever sit on top of a dialog. */
+.kk-dialog-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 900;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.kk-dialog {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  width: 100%;
+  max-width: 340px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+  text-align: left;
+}
+.kk-dialog-title {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: #2c2c2a;
+}
+.kk-dialog-body {
+  margin: 0 0 18px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #555;
+  /* A long room name must wrap rather than stretch the card off the screen. */
+  overflow-wrap: anywhere;
+}
+.kk-dialog-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+/* 44px minimum: the same reason the room pins are too small to tap reliably.
+   These two sit side by side, and one of them deletes a room. */
+.kk-dialog-buttons .btn {
+  min-height: 44px;
+  padding: 0 18px;
+  font-size: 15px;
+  font-weight: bold;
+  border-radius: 6px;
+  margin: 0;
+}
+.kk-dialog-cancel {
+  background: #f1f1f1 !important;
+  color: #2c2c2a !important;
+  border: none !important;
+}
+.kk-dialog-ok {
+  background: #1a73e8 !important;
+  color: #fff !important;
+  border: none !important;
+}
+/* Destructive actions are red, so the dangerous button never looks like the
+   safe one at a glance. */
+.kk-dialog-danger {
+  background: #d93025 !important;
+  color: #fff !important;
+}

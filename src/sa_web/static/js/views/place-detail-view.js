@@ -151,9 +151,38 @@ var Shareabouts = Shareabouts || {};
 
     onDeletePlace: function(evt) {
       var self = this;
-      if (!confirm('Are you sure you want to delete this place? This cannot be undone.')) { return; }
-
       var $button = this.$(evt.target);
+      var name = String(this.model.get('name') || '').trim();
+
+      // The browser's confirm() is a full-height black slab on Android Chrome
+      // and cannot be styled at all. KK.confirm asks the same thing in a card
+      // that fits, and names the room - "this place" is no help to somebody
+      // who has two rooms open and is about to delete one of them for good.
+      //
+      // The fallback keeps a room deletable even if the flavor script failed
+      // to load, which is the one situation where an ugly dialog beats none.
+      var ask = (window.KothaKhoj && window.KothaKhoj.confirm)
+        ? window.KothaKhoj.confirm({
+            title: 'Delete this room?',
+            body: (name ? '"' + name + '" will be removed from the map.'
+                        : 'This room will be removed from the map.') +
+                  ' This cannot be undone.',
+            okText: 'Delete',
+            cancelText: 'Cancel',
+            danger: true
+          })
+        : Promise.resolve(window.confirm(
+            'Are you sure you want to delete this place? This cannot be undone.'));
+
+      ask.then(function(confirmed) {
+        if (confirmed) { self.reallyDeletePlace($button); }
+      });
+    },
+
+    // Split out because the question is now answered asynchronously; this is
+    // the part that was under the old confirm(), unchanged.
+    reallyDeletePlace: function($button) {
+      var self = this;
       $button.attr('disabled', 'disabled');
 
       var model = this.model;

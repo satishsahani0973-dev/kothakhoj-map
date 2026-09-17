@@ -16,6 +16,65 @@
     });
   };
 
+  // ---- A question you can read -------------------------------------------
+  // The browser's own confirm() is a full-height black slab on Android Chrome
+  // with the buttons wherever it decides to put them, and not one thing about
+  // it can be styled. This asks the same question in a card that fits.
+  //
+  // Returns a promise for true/false. Callers must therefore be async, which
+  // is the one real cost of leaving confirm() behind.
+  //
+  // The card is appended to <body> and NEVER inside #content. #content
+  // carries z-index 10, which starts its own stacking context, so anything
+  // fixed inside it is stacked against its siblings rather than against the
+  // site header - that is exactly what painted the header over the camera
+  // overlay. Attaching to body avoids the whole question.
+  KK.confirm = function(opts) {
+    opts = opts || {};
+    return new Promise(function(resolve) {
+      var done = false;
+      function finish(answer) {
+        if (done) { return; }
+        done = true;
+        $(document).off('keydown.kkdialog');
+        $back.remove();
+        resolve(answer);
+      }
+
+      var $back = $('<div class="kk-dialog-backdrop"></div>');
+      var $card = $('<div class="kk-dialog" role="dialog" aria-modal="true"></div>');
+      $card.append($('<h2 class="kk-dialog-title"></h2>').text(opts.title || 'Are you sure?'));
+      if (opts.body) {
+        $card.append($('<p class="kk-dialog-body"></p>').text(opts.body));
+      }
+      // .text(), not .html(): the body names the room, and a room name is
+      // whatever somebody typed into the form.
+      var $row = $('<div class="kk-dialog-buttons"></div>');
+      var $cancel = $('<button type="button" class="btn kk-dialog-cancel"></button>')
+        .text(opts.cancelText || 'Cancel');
+      var $ok = $('<button type="button" class="btn kk-dialog-ok"></button>')
+        .text(opts.okText || 'OK');
+      if (opts.danger) { $ok.addClass('kk-dialog-danger'); }
+      $row.append($cancel, $ok);
+      $card.append($row);
+      $back.append($card);
+
+      $cancel.on('click', function() { finish(false); });
+      $ok.on('click', function() { finish(true); });
+      // Tapping the dark area is a cancel, the way every sheet on a phone
+      // behaves. Clicks inside the card must not count.
+      $back.on('click', function(e) { if (e.target === $back[0]) { finish(false); } });
+      $(document).on('keydown.kkdialog', function(e) {
+        if (e.key === 'Escape' || e.keyCode === 27) { finish(false); }
+      });
+
+      $('body').append($back);
+      // Focus the safe button, not the destructive one: a stray Enter should
+      // never be what deletes somebody's room.
+      $cancel.focus();
+    });
+  };
+
   // ---- First-visit sign-in gate ------------------------------------------
   // Visitors who are not signed in and never chose "Continue browsing" get
   // the sign-in panel over a blurred map. Shared /place/ links skip the
