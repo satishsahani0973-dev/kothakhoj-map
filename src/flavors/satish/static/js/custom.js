@@ -1358,20 +1358,30 @@
         interactive: false
       });
 
+      // The name lives INSIDE the pin's own icon, not in a Leaflet tooltip.
+      //
+      // As a tooltip it was a separate layer that Leaflet had to place itself
+      // on every frame, and placing one means reading container.offsetWidth -
+      // a forced layout - straight after writing a transform to the last one.
+      // 141 of those, interleaved, every frame of a pinch: about 92% of the
+      // frame went on it, and the pins themselves cost almost nothing because
+      // they only ever write. Hiding the labels below zoom 13 did not help
+      // either; Leaflet kept placing them while CSS kept them invisible.
+      //
+      // As a child of the icon the name simply rides the pin's transform. No
+      // placing, no layout read, and 141 fewer layers on the map.
+      //
+      // The 31px and the vertical centring are measured off the tooltip this
+      // replaces, so the label lands exactly where it used to.
       var marker = L.marker([college.lat, college.lng], {
         icon: L.divIcon({
           className: 'college-div-icon',
-          html: '<span class="college-marker">🎓</span>',
+          html: '<span class="college-marker">🎓</span>' +
+                '<span class="college-label-text">' + KK.esc(college.name) + '</span>',
           iconSize: [26, 26],
           iconAnchor: [13, 13]
         }),
         keyboard: false
-      });
-      marker.bindTooltip(college.name, {
-        permanent: true,
-        direction: 'right',
-        offset: [12, 0],
-        className: 'college-label'
       });
       marker.on('click', function() {
         var wasActive = (activeCircle === circle);
