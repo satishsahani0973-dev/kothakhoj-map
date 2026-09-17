@@ -80,7 +80,7 @@ var Shareabouts = Shareabouts || {};
           },
           error: function() {
             self.getSupportStatus(self.options.userToken).destroy();
-            alert('Oh dear. It looks like that didn\'t save.');
+            S.Util.alert('Oh dear. It looks like that didn\'t save.');
             S.Util.log('USER', 'place', 'fail-to-support', self.collection.options.placeModel.getLoggingDetails());
           }
         });
@@ -93,7 +93,7 @@ var Shareabouts = Shareabouts || {};
           },
           error: function() {
             self.collection.add(userSupport);
-            alert('Oh dear. It looks like that didn\'t save.');
+            S.Util.alert('Oh dear. It looks like that didn\'t save.');
             S.Util.log('USER', 'place', 'fail-to-unsupport', self.collection.options.placeModel.getLoggingDetails());
           }
         });

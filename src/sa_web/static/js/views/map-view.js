@@ -164,7 +164,7 @@ var Shareabouts = Shareabouts || {};
             message = 'It took too long to determine your location. Please try again.';
             break;
         }
-        alert(message);
+        S.Util.alert(message);
       };
 
       var onLocationFound = function(evt) {
@@ -179,7 +179,7 @@ var Shareabouts = Shareabouts || {};
         } else {
           msg = 'It looks like you\'re not in a place where we\'re collecting ' +
             'data. I\'m going to leave the map where it is, okay?';
-          alert(msg);
+          S.Util.alert(msg);
         }
       };
 
@@ -527,7 +527,7 @@ var Shareabouts = Shareabouts || {};
           },
           onError: function(message) {
             self.$('.locate-me').removeClass('locating').text('My Location');
-            alert(message);
+            S.Util.alert(message);
           }
         });
         return;
@@ -539,7 +539,7 @@ var Shareabouts = Shareabouts || {};
       this.stopDirections();
 
       if (!navigator.geolocation) {
-        alert('Your browser does not support location. Directions are not available.');
+        S.Util.alert('Your browser does not support location. Directions are not available.');
         return;
       }
 
@@ -825,7 +825,7 @@ var Shareabouts = Shareabouts || {};
             makeRoute('driving', true);
           } else {
             self.stopDirections();
-            alert('Could not find a route to this place.');
+            S.Util.alert('Could not find a route to this place.');
           }
         });
       };
@@ -908,7 +908,7 @@ var Shareabouts = Shareabouts || {};
 
       }, function(err) {
         self.stopDirections();
-        alert('Could not get your location: ' + err.message);
+        S.Util.alert('Could not get your location: ' + err.message);
       }, { enableHighAccuracy: true, timeout: 15000 });
     },
     stopDirections: function() {

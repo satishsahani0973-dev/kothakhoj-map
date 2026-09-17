@@ -68,6 +68,31 @@ var Shareabouts = Shareabouts || {};
     // forms. NOTE that the cache is shared between both forms, so, for example,
     // `submitter_name` in both places will have a shared default value (if
     // sticky: true in config.yml).
+    // ---- Telling somebody something ----------------------------------
+    // The browser's alert() is a full-height black slab on Android Chrome
+    // that cannot be styled, sized or placed. These route through the
+    // flavor's dialog instead, and fall back to the native one when the
+    // flavor script has not loaded - an ugly message still beats silence.
+    //
+    // One place to fall back from, rather than the same guard repeated at
+    // seventeen call sites.
+    //
+    // alert() for something that went wrong and needs acknowledging;
+    // toast() for something that went right and does not. Answering a
+    // success with a modal is worse than the success is good.
+    alert: function(message, title) {
+      var KK = window.KothaKhoj;
+      if (KK && KK.alert) { return KK.alert({ title: title || '', body: message }); }
+      window.alert(message);
+      return null;
+    },
+    toast: function(message) {
+      var KK = window.KothaKhoj;
+      if (KK && KK.toast) { return KK.toast(message); }
+      window.alert(message);
+      return null;
+    },
+
     // Durable record of the IDs of places this browser created, so we can
     // highlight "my places" on the map even after the session token rotates.
     getMyPlaceIds: function() {

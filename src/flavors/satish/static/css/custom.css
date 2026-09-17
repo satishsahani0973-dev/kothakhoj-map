@@ -1226,3 +1226,37 @@ body.kk-directions .kk-filter-chip { display: none; }
   background: #d93025 !important;
   color: #fff !important;
 }
+
+/* A message that does not stop you. See KK.toast in custom.js.
+   Sits above the map and the panel, below the dialog backdrop (900), and
+   never takes a tap: pointer-events none means a finger aimed at the map
+   underneath still reaches it. */
+.kk-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%) translateY(8px);
+  z-index: 880;
+  /* max-content, or a fixed element with no width shrinks to whatever the
+     nearest block will give it - the first attempt came out 188px wide and
+     three lines tall for one short sentence. */
+  width: max-content;
+  max-width: 88vw;
+  padding: 12px 18px;
+  border-radius: 22px;
+  background: rgba(30, 30, 30, 0.92);
+  color: #fff;
+  font-size: 14px;
+  font-weight: bold;
+  text-align: center;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.kk-toast.is-showing {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}

@@ -68,7 +68,7 @@ var Shareabouts = Shareabouts || {};
             .catch(function() {});
         } else if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(url).then(function() {
-            alert('Link copied! You can now paste it anywhere.');
+            S.Util.toast('Link copied! You can now paste it anywhere.');
           }, function() {
             window.prompt('Copy this link to share:', url);
           });
@@ -201,11 +201,11 @@ var Shareabouts = Shareabouts || {};
         error: function(m, response) {
           S.Util.log('USER', 'deleted-place', 'fail-to-delete-place');
           if (response && response.status === 403) {
-            alert('This place can no longer be deleted from this browser, ' +
+            S.Util.alert('This place can no longer be deleted from this browser, ' +
                   'because your session has changed. Please email ' +
                   'kothakhoj4@gmail.com and we will remove it for you.');
           } else {
-            alert('Could not delete this place. Please try again.');
+            S.Util.alert('Could not delete this place. Please try again.');
           }
           $button.removeAttr('disabled');
         }

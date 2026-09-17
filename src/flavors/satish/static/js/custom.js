@@ -29,7 +29,7 @@
   // fixed inside it is stacked against its siblings rather than against the
   // site header - that is exactly what painted the header over the camera
   // overlay. Attaching to body avoids the whole question.
-  KK.confirm = function(opts) {
+  function openDialog(opts) {
     opts = opts || {};
     return new Promise(function(resolve) {
       var done = false;
@@ -43,23 +43,31 @@
 
       var $back = $('<div class="kk-dialog-backdrop"></div>');
       var $card = $('<div class="kk-dialog" role="dialog" aria-modal="true"></div>');
-      $card.append($('<h2 class="kk-dialog-title"></h2>').text(opts.title || 'Are you sure?'));
+      // An alert usually has nothing to put in a heading: the message IS the
+      // content, and "Error" above it tells nobody anything.
+      if (opts.title) {
+        $card.append($('<h2 class="kk-dialog-title"></h2>').text(opts.title));
+      }
       if (opts.body) {
+        // .text(), not .html(): the body names the room, and a room name is
+        // whatever somebody typed into the form.
         $card.append($('<p class="kk-dialog-body"></p>').text(opts.body));
       }
-      // .text(), not .html(): the body names the room, and a room name is
-      // whatever somebody typed into the form.
       var $row = $('<div class="kk-dialog-buttons"></div>');
-      var $cancel = $('<button type="button" class="btn kk-dialog-cancel"></button>')
-        .text(opts.cancelText || 'Cancel');
+      var $cancel = null;
+      if (!opts.hideCancel) {
+        $cancel = $('<button type="button" class="btn kk-dialog-cancel"></button>')
+          .text(opts.cancelText || 'Cancel');
+        $row.append($cancel);
+      }
       var $ok = $('<button type="button" class="btn kk-dialog-ok"></button>')
         .text(opts.okText || 'OK');
       if (opts.danger) { $ok.addClass('kk-dialog-danger'); }
-      $row.append($cancel, $ok);
+      $row.append($ok);
       $card.append($row);
       $back.append($card);
 
-      $cancel.on('click', function() { finish(false); });
+      if ($cancel) { $cancel.on('click', function() { finish(false); }); }
       $ok.on('click', function() { finish(true); });
       // Tapping the dark area is a cancel, the way every sheet on a phone
       // behaves. Clicks inside the card must not count.
@@ -70,9 +78,42 @@
 
       $('body').append($back);
       // Focus the safe button, not the destructive one: a stray Enter should
-      // never be what deletes somebody's room.
-      $cancel.focus();
+      // never be what deletes somebody's room. An alert has only the one.
+      ($cancel || $ok).focus();
     });
+  }
+
+  KK.confirm = function(opts) { return openDialog(opts); };
+
+  // One button, for something that has already happened and only needs
+  // acknowledging. Takes a plain string as well, because most callers have
+  // nothing to say but the message.
+  KK.alert = function(opts) {
+    if (typeof opts === 'string') { opts = { body: opts }; }
+    opts = opts || {};
+    return openDialog({
+      title: opts.title || '',
+      body: opts.body || '',
+      okText: opts.okText || 'OK',
+      hideCancel: true
+    });
+  };
+
+  // ---- A message that does not stop you ----------------------------------
+  // "Link copied" is not a question and not a failure. Answering a success
+  // with a modal you have to dismiss is worse than the success is good, so
+  // this says it and gets out of the way. No buttons, no focus stealing, and
+  // pointer-events none so it can never swallow a tap meant for the map.
+  var toastTimer = null;
+  KK.toast = function(message) {
+    var $t = $('.kk-toast');
+    if (!$t.length) {
+      $t = $('<div class="kk-toast" role="status" aria-live="polite"></div>');
+      $('body').append($t);
+    }
+    $t.text(String(message == null ? '' : message)).addClass('is-showing');
+    if (toastTimer) { clearTimeout(toastTimer); }
+    toastTimer = setTimeout(function() { $t.removeClass('is-showing'); }, 2600);
   };
 
   // ---- First-visit sign-in gate ------------------------------------------
@@ -1068,7 +1109,7 @@
   $(document).on('click', '.signin-scan', function() {
     var $panel = $(this).closest('.signin-page');
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      alert('Camera is not available here. Scan the card with your phone camera instead, or type your username and password.');
+      KK.alert('Camera is not available here. Scan the card with your phone camera instead, or type your username and password.');
       return;
     }
     var staticUrl = (window.Shareabouts && window.Shareabouts.bootstrapped &&
@@ -1101,14 +1142,14 @@
           // only way out of.
           if (!window.jsQR) {
             stopScanner($panel);
-            alert('Could not start the scanner. Please type your username and password.');
+            KK.alert('Could not start the scanner. Please type your username and password.');
             return;
           }
           scanLoop(video, $panel);
         });
       })
       .catch(function() {
-        alert('Camera permission was refused. Scan the card with your phone camera instead, or type your username and password.');
+        KK.alert('Camera permission was refused. Scan the card with your phone camera instead, or type your username and password.');
       });
   });
 
@@ -1139,7 +1180,7 @@
                      window.Shareabouts.bootstrapped.staticUrl) || '/static/';
     $.getScript(staticUrl + 'libs/jsQR.js').always(function() {
       if (!window.jsQR) {
-        alert('Could not read the photo. Please type your username and password.');
+        KK.alert('Could not read the photo. Please type your username and password.');
         return;
       }
       var img = new Image();
@@ -1157,10 +1198,10 @@
         if (token) {
           window.location = '/qr/' + token;
         } else {
-          alert('No login card found in that photo. Try a clearer, closer photo of the QR.');
+          KK.alert('No login card found in that photo. Try a clearer, closer photo of the QR.');
         }
       };
-      img.onerror = function() { alert('Could not open that photo.'); };
+      img.onerror = function() { KK.alert('Could not open that photo.'); };
       img.src = URL.createObjectURL(file);
     });
   });
