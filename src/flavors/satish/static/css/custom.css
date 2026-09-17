@@ -1260,3 +1260,21 @@ body.kk-directions .kk-filter-chip { display: none; }
   visibility: visible;
   transform: translateX(-50%) translateY(0);
 }
+
+/* Room pins: a target a finger can actually hit.
+   The dots are 17x18 PNGs. WCAG's minimum target is 24x24, Apple says 44x44,
+   Android says 48x48, and a fingertip is about 40px across - so 17px was
+   failing every one of them, and "sometimes the pin doesn't get clicked" was
+   the result. Measured on a live pin: taps landed up to 14px from centre and
+   missed at 18px.
+   config.yml now asks Leaflet for a 44x44 box, and object-fit: none draws the
+   PNG at its true size centred inside it, so the dot looks pixel-identical
+   while the clickable area nearly triples.
+   The teardrops are left alone: their box already equals their intrinsic
+   25x41, so this rule renders them exactly as before.
+   If a browser is too old for object-fit the dot stretches to 44x44 and looks
+   soft - bigger and blurrier, not broken, and those phones cannot run the
+   WebGL basemap anyway. */
+img.leaflet-marker-icon {
+  object-fit: none;
+}

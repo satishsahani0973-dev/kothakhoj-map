@@ -150,22 +150,22 @@ place_types:
         # Free later: orange dot
         icon:
           iconUrl: /static/css/images/markers/dot-f95016.png
-          iconSize: [17, 18]
-          iconAnchor: [9, 9]
+          iconSize: [44, 44]
+          iconAnchor: [22, 22]
 
       - condition: '"{{free_state}}" === "now" || ("{{free_state}}" !== "ask" && Number("{{free_ts}}") > 0 && Number("{{free_ts}}") <= Date.now())'
         # Available now: green dot
         icon:
           iconUrl: /static/css/images/markers/dot-4bbd45.png
-          iconSize: [17, 18]
-          iconAnchor: [9, 9]
+          iconSize: [44, 44]
+          iconAnchor: [22, 22]
 
       - condition: 'true'
         # Nobody knows yet, or a place saved before this feature: blue dot
         icon:
           iconUrl: /static/css/images/markers/dot-0d85e9.png
-          iconSize: [17, 18]
-          iconAnchor: [9, 9]
+          iconSize: [44, 44]
+          iconAnchor: [22, 22]
 
   double_room:
     label: _(Double Room)
