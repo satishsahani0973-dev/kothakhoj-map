@@ -955,7 +955,22 @@
     // handed - callers that just want the camera off (a panel closing) need
     // not know which panel it was.
     $('.signin-scanner').addClass('is-hidden').removeClass('is-scanning');
-    $('body').removeClass('kk-scanning');
+    // Guarded, and it MUST stay guarded. This function is called by the panel
+    // watcher above, which runs from a MutationObserver on body's class - and
+    // jQuery's removeClass assigns elem.className every time it is called,
+    // even when the class was not there and nothing changed:
+    //
+    //     elem.className = value ? jQuery.trim( cur ) : "";
+    //
+    // An assignment to className fires that observer whether or not the value
+    // changed, so an unguarded write here means observer -> stopScanner ->
+    // write -> observer, round forever. It never returns to the event loop, so
+    // the page paints once and then ignores every tap: the site looks fine and
+    // nothing at all is clickable. That shipped, and it is what took the site
+    // down. Read the class before writing it.
+    if (document.body.classList.contains('kk-scanning')) {
+      document.body.classList.remove('kk-scanning');
+    }
     if (!$panel || !$panel.length) { $panel = $('.signin-page'); }
     $panel.find('.signin-scan').removeClass('is-hidden');
   }
@@ -1017,7 +1032,10 @@
           .removeClass('is-hidden')
           .addClass('is-scanning');
         // Lifts #content over the site header; see body.kk-scanning in the CSS.
-        $('body').addClass('kk-scanning');
+        // Guarded for the same reason as the removeClass in stopScanner.
+        if (!document.body.classList.contains('kk-scanning')) {
+          document.body.classList.add('kk-scanning');
+        }
         decoderReady.always(function() {
           // Nothing to decode with: take the camera back down rather than
           // leaving a full-screen black window the Cancel button is the
