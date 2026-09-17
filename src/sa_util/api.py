@@ -29,13 +29,49 @@ def make_resource_uri(resource, root):
 ApiSessionInfo = dict
 
 
+# Cookie values that mean "there is no session here". The first two are what
+# this code used to write: a visitor with no session got the *string* 'None'
+# stored in their browser, because a missing id was handed to requests, which
+# stringified it. They are treated as absent on the way IN as well as refused
+# on the way out, so a browser already holding the bad value recovers by
+# itself on the next page load instead of staying signed out forever.
+NOT_A_SESSION = frozenset(['', 'none', 'null', 'undefined'])
+
+
+def _real_cookie_value(value):
+    """
+    A cookie value, or None when it is absent or one of the words that mean
+    absent. Compared case-insensitively: the id came out as 'None' and the
+    domain as 'none'.
+    """
+    if value is None:
+        return None
+    value = value.strip()
+    return None if value.lower() in NOT_A_SESSION else value
+
+
 def get_api_sessioninfo(django_http_request: HttpRequest) -> ApiSessionInfo:
     """
-    Pull session cookie information from a Django HTTP request.
+    Pull session cookie information from a Django HTTP request, or None when
+    the request carries no session.
+
+    Returning None rather than a dict of Nones matters: every caller tests
+    this value for truth, and a dict with nothing in it is still truthy. That
+    is how a visitor with no session ended up with a cookie jar entry named
+    'sessionid' whose value was the text 'None' scoped to the domain 'none' -
+    which was then written back to the browser as a real-looking session and
+    sent to the API on every later request, where it meant nothing. The API
+    saw an anonymous caller, the map saw a signed-out user, and the Delete
+    button vanished from people's own rooms.
     """
+    session_id = _real_cookie_value(
+        django_http_request.COOKIES.get('sa-api-sessionid'))
+    if not session_id:
+        return None
     return {
-        'id': django_http_request.COOKIES.get('sa-api-sessionid'),
-        'domain': django_http_request.COOKIES.get('sa-api-sessiondomain'),
+        'id': session_id,
+        'domain': _real_cookie_value(
+            django_http_request.COOKIES.get('sa-api-sessiondomain')),
     }
 
 
@@ -47,11 +83,14 @@ def make_api_session(dataset_root, api_sessioninfo: ApiSessionInfo):
     api_session.headers['Content-type'] = 'application/json'
     api_session.headers['Accept'] = 'application/json'
 
-    if api_sessioninfo:
+    # Only ever carry a session we actually have. get_api_sessioninfo returns
+    # None when there is none, and an id is required here besides, so that a
+    # half-filled dict can never put a placeholder in the jar again.
+    if api_sessioninfo and api_sessioninfo.get('id'):
         api_session.cookies.set(
             'sessionid',
-            api_sessioninfo.get('id', ''),
-            domain=api_sessioninfo.get('domain', ''),
+            api_sessioninfo['id'],
+            domain=api_sessioninfo.get('domain') or '',
         )
 
     return api_session
@@ -205,10 +244,13 @@ class ShareaboutsApi:
         Update the sessionid from the cookies in the session.
         """
         for cookie in self.session.cookies:
-            if cookie.name == 'sessionid':
+            # A jar entry whose value is the text 'None' is not a session; see
+            # NOT_A_SESSION. Skipping it here means the delete branch below
+            # runs instead, which is the truthful answer.
+            if cookie.name == 'sessionid' and _real_cookie_value(cookie.value):
                 self.sessioninfo = {
                     'id': cookie.value,
-                    'domain': cookie.domain,
+                    'domain': _real_cookie_value(cookie.domain),
                 }
                 break
         else:
@@ -232,14 +274,36 @@ class ShareaboutsApi:
             # to the API (sa_web/views.py reads them from request.COOKIES).
             # samesite Lax matches what browsers already assume when the
             # attribute is absent, written down so it cannot drift.
+            #
+            # max_age, because without it this went out as a browser-session
+            # cookie: closing Chrome threw the sign-in away. The map's own
+            # session lasts 400 days and the API keeps its session for the
+            # same, but the browser was dropping the key that joins the two -
+            # so someone came back the next day silently signed out, with the
+            # Delete button gone from their own room while the gold "Yours"
+            # pin (which lives in localStorage) still said it was theirs.
+            # 400 days is not a preference: browsers cap cookie lifetime
+            # there and silently shorten anything longer.
             cookie_flags = {
                 'secure': settings.SESSION_COOKIE_SECURE,
                 'httponly': True,
                 'samesite': 'Lax',
+                'max_age': settings.SESSION_COOKIE_AGE,
             }
             response.set_cookie('sa-api-sessionid', self.sessioninfo['id'], **cookie_flags)
-            response.set_cookie('sa-api-sessiondomain', self.sessioninfo['domain'], **cookie_flags)
-            print(f'Updating session cookie: {self.sessioninfo}')
+            # Only write a domain we actually have. Handing None to set_cookie
+            # is what put the text 'none' in the browser in the first place,
+            # and requests then scoped the session to a domain that matches
+            # nothing, so it was never sent to the API at all.
+            domain = self.sessioninfo.get('domain')
+            if domain:
+                response.set_cookie('sa-api-sessiondomain', domain, **cookie_flags)
+            else:
+                response.delete_cookie('sa-api-sessiondomain', samesite='Lax')
+            # The id is a credential - whoever holds it is signed in as that
+            # account - so it is not printed. The old line put it in the
+            # container log on every request. Say only that there is one.
+            print('Session cookie written (domain set: %s)' % bool(domain))
         else:
             # Delete with the same samesite the set branch uses. A cookie is
             # identified by name, domain and path, so this clears it either

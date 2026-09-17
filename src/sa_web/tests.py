@@ -301,3 +301,80 @@ class PlaceCreatedNotificationTests (SimpleTestCase):
                 'text/html',
             )
             msg.send.assert_called_once_with()
+
+
+class ApiSessionCookieTest (SimpleTestCase):
+    """
+    The map carries the API's sign-in in two cookies it writes by hand, and
+    both halves were broken at once.
+
+    A visitor with no session had the *string* 'None' written into their
+    browser, because a dict of Nones is truthy and got handed to requests,
+    which stringified it. That value was then sent to the API on every later
+    request, where it meant nothing.
+
+    And the cookie went out with no lifetime, so closing the browser threw the
+    sign-in away while the API kept the session behind it.
+
+    Either one leaves someone silently signed out. The first sign of it is the
+    Delete button missing from a room they added themselves - while the gold
+    "Yours" pin, which lives in localStorage and knows nothing about sessions,
+    still says the room is theirs.
+    """
+
+    def _request(self, **cookies):
+        from django.http import HttpRequest
+        request = HttpRequest()
+        request.COOKIES.update(cookies)
+        return request
+
+    def test_no_cookies_means_no_session(self):
+        from sa_util.api import get_api_sessioninfo
+        self.assertIsNone(get_api_sessioninfo(self._request()))
+
+    def test_the_word_none_is_not_a_session(self):
+        from sa_util.api import get_api_sessioninfo
+        # Exactly what the old code wrote into people's browsers. Treated as
+        # absent on the way IN too, so a browser already holding it recovers
+        # by itself instead of staying signed out forever.
+        for bad in ('None', 'none', 'NULL', 'undefined', '', '   '):
+            with self.subTest(value=bad):
+                info = get_api_sessioninfo(
+                    self._request(**{'sa-api-sessionid': bad}))
+                self.assertIsNone(info)
+
+    def test_a_real_session_is_carried(self):
+        from sa_util.api import get_api_sessioninfo
+        info = get_api_sessioninfo(self._request(**{
+            'sa-api-sessionid': 'abc123',
+            'sa-api-sessiondomain': 'api.example.com'}))
+        self.assertEqual(info['id'], 'abc123')
+        self.assertEqual(info['domain'], 'api.example.com')
+
+    def test_a_real_session_survives_a_poisoned_domain(self):
+        from sa_util.api import get_api_sessioninfo
+        # Browsers out there hold domain='none' from the old code. The id is
+        # still good; only the nonsense domain is dropped.
+        info = get_api_sessioninfo(self._request(**{
+            'sa-api-sessionid': 'abc123',
+            'sa-api-sessiondomain': 'none'}))
+        self.assertEqual(info['id'], 'abc123')
+        self.assertIsNone(info['domain'])
+
+    def test_no_session_puts_nothing_in_the_cookie_jar(self):
+        from sa_util.api import make_api_session
+        # This is where 'None' was born.
+        for empty in (None, {}, {'id': None, 'domain': None}, {'id': ''}):
+            with self.subTest(sessioninfo=empty):
+                session = make_api_session('http://example.com', empty)
+                self.assertEqual(
+                    len(session.cookies), 0,
+                    'a placeholder session must never reach the cookie jar')
+
+    def test_a_real_session_does_reach_the_cookie_jar(self):
+        from sa_util.api import make_api_session
+        session = make_api_session('http://example.com', {
+            'id': 'abc123', 'domain': 'api.example.com'})
+        self.assertEqual(
+            [(c.name, c.value) for c in session.cookies],
+            [('sessionid', 'abc123')])
