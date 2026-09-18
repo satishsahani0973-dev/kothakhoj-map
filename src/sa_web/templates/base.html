@@ -30,25 +30,42 @@
      These say "start now, I will need it", so all five handshakes overlap
      with the parser still reading this page.
 
-     Every origin below is used on every single page load:
-       cdnjs        two stylesheets in this head - RENDER BLOCKING, nothing
-                    paints until they land, so this is the one that matters
-       googleapis   jquery, the first script in the body
-       unpkg        leaflet-routing-machine and mapbox-gl-leaflet
-       tiles.mapbox mapbox-gl.js itself
-       api.mapbox   the map tiles and the style, fetched as soon as the map
-                    starts - and the only one that needs crossorigin, because
-                    mapbox-gl requests it with CORS. Adding crossorigin to
-                    the others would open a SECOND connection they cannot
-                    reuse, which is slower than not hinting at all.
+     Every origin below is used on every single page load, in roughly this
+     order, and they are listed in the order the page needs them:
+       fonts.googleapis  the Dancing Script stylesheet, RENDER BLOCKING and
+                         the first outside thing this head asks for. It is
+                         what draws the KothaKhoj wordmark.
+       fonts.gstatic     the font file itself. The browser cannot even learn
+                         this host exists until the stylesheet above arrives
+                         and is parsed, so it is normally two waits stacked
+                         end to end. This is the case preconnect helps most.
+       cdnjs             two more render-blocking stylesheets, plus leaflet
+                         and the geocoder
+       ajax.googleapis   jquery, the first script in the body
+       tiles.mapbox      mapbox-gl.js and its css
+       unpkg             leaflet-routing-machine and mapbox-gl-leaflet
+       api.mapbox        the style and the map tiles, fetched as soon as the
+                         map starts
 
-     Keep this list short. Each entry costs a real connection whether or not
-     it gets used, so nothing speculative belongs here. If the three CDN files
-     are ever self-hosted, delete the matching lines with them. {% endcomment %}
+     crossorigin goes on exactly two of them. Fonts are always fetched in
+     CORS mode, and mapbox-gl requests its style and tiles with fetch(), so
+     those connections must be opened the same way or they cannot be reused.
+     Putting crossorigin on the other five would open a SECOND connection
+     that their plain requests cannot use, which is worse than no hint.
+
+     Seven is more than a list like this usually wants, and the reason it is
+     acceptable is that every one is contacted on every load - the cost of a
+     preconnect that gets used is nothing, because the connection was going
+     to be opened anyway, just later and in series. Nothing speculative
+     belongs here. The real fix is to stop depending on five other companies
+     to render our own homepage; when something is self-hosted, delete its
+     line here with it. {% endcomment %}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://cdnjs.cloudflare.com">
   <link rel="preconnect" href="https://ajax.googleapis.com">
-  <link rel="preconnect" href="https://unpkg.com">
   <link rel="preconnect" href="https://api.tiles.mapbox.com">
+  <link rel="preconnect" href="https://unpkg.com">
   <link rel="preconnect" href="https://api.mapbox.com" crossorigin>
 
   {% block app_icons %}
