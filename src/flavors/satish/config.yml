@@ -233,12 +233,39 @@ place:
       name: location_type
       attrs:
         - key: required
+    # Compulsory since 2026-09-18. A room with no way to reach anybody is not
+    # a listing - as the contact block in custom.js puts it, "the number is the
+    # product: the student rings from where he is sitting instead of walking
+    # the lanes".
+    #
+    # TWO changes were needed and neither works alone:
+    #
+    #  * `optional: true` is REMOVED. That key never enforced anything. The
+    #    only thing it does in this whole app is print a small "(optional)"
+    #    beside the label - see sa_web/jstemplates/form-field-label.html.
+    #    Removing it changes the label and nothing else.
+    #  * `required` is ADDED to attrs. attrs is the only part of this field
+    #    that reaches the <input> as real HTML, so it is what actually stops
+    #    an empty submit. It bites because place-form-view binds 'submit
+    #    form', and the browser runs its own validation before that fires.
+    #
+    # `pattern` alone was never enough: a pattern only checks a value that
+    # exists, so an empty box always passed it.
+    #
+    # Browser-side only. The api stores this form as free JSON and does not
+    # require the key, so a direct POST can still leave it out.
+    #
+    # Privacy consequence, deliberate and worth re-reading before changing:
+    # every new room now publishes a working Nepali mobile number to anybody
+    # with the link, with no sign-in. KK.gate in custom.js is where that would
+    # be tightened if it ever needs to be.
     - prompt: _(Owner's Contact Number)
       label: _(Owner's Contact Number)
       type: text
-      optional: true
       name: contact_number
       attrs:
+        - key: required
+          value: required
         - key: placeholder
           value: _(e.g. 9812345678)
         - key: size
