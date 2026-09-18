@@ -18,6 +18,39 @@
   <!-- Mobile Viewport Fix -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimal-ui" />
 
+  {% comment %} Warm up the outside origins this page cannot render without.
+
+     Before a browser can fetch anything from another host it has to look the
+     name up, open a TCP connection, and negotiate TLS. Three round trips, and
+     on mobile data in Butwal that is commonly 300-600ms EACH TIME - spent
+     before a single useful byte moves. Without these hints the browser does
+     not start any of it until the parser actually reaches the tag, so the
+     waits happen one after another, late.
+
+     These say "start now, I will need it", so all five handshakes overlap
+     with the parser still reading this page.
+
+     Every origin below is used on every single page load:
+       cdnjs        two stylesheets in this head - RENDER BLOCKING, nothing
+                    paints until they land, so this is the one that matters
+       googleapis   jquery, the first script in the body
+       unpkg        leaflet-routing-machine and mapbox-gl-leaflet
+       tiles.mapbox mapbox-gl.js itself
+       api.mapbox   the map tiles and the style, fetched as soon as the map
+                    starts - and the only one that needs crossorigin, because
+                    mapbox-gl requests it with CORS. Adding crossorigin to
+                    the others would open a SECOND connection they cannot
+                    reuse, which is slower than not hinting at all.
+
+     Keep this list short. Each entry costs a real connection whether or not
+     it gets used, so nothing speculative belongs here. If the three CDN files
+     are ever self-hosted, delete the matching lines with them. {% endcomment %}
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://ajax.googleapis.com">
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="preconnect" href="https://api.tiles.mapbox.com">
+  <link rel="preconnect" href="https://api.mapbox.com" crossorigin>
+
   {% block app_icons %}
   <!-- Favicon & Progressively-Enhanced Touch Icons: http://mathiasbynens.be/notes/touch-icons#sizes -->
   <link rel="shortcut icon" href="{{ config.static_url }}css/images/favicon.ico">
