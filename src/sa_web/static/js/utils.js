@@ -5,6 +5,17 @@ var Shareabouts = Shareabouts || {};
 (function(S){
   'use strict';
 
+  // Quality for every JPEG this app re-encodes in the browser before upload.
+  //
+  // The alternative is passing nothing, which does not mean "lossless" - it
+  // means the browser's own default of 0.92. At the size a room photo has
+  // already been reduced to by then, 0.82 is not tellable apart by eye and is
+  // roughly a third fewer bytes. Those bytes are paid for twice: once by the
+  // student uploading on mobile data, and again by every visitor who opens
+  // the room. The server caps size as a backstop (MAX_IMAGE_SIDE in the api),
+  // but it cannot undo quality that was already spent here.
+  S.JPEG_QUALITY = 0.82;
+
   S.Util = {
     getPrettyDateTime: function(datetime, format) {
       if (format) {

@@ -137,7 +137,7 @@ var Shareabouts = Shareabouts || {};
                 data = {
                   name: fieldName,
                   blob: blob,
-                  file: canvas.toDataURL('image/jpeg')
+                  file: canvas.toDataURL('image/jpeg', S.JPEG_QUALITY)
                 };
 
             attachment = self.model.attachmentCollection.find(function(model) {
@@ -149,7 +149,12 @@ var Shareabouts = Shareabouts || {};
             } else {
               attachment.set(data);
             }
-          }, 'image/jpeg');
+            // toBlob with no quality argument uses the browser's default,
+            // which is 0.92 in every major browser. At the size this canvas
+            // has already been reduced to, 0.82 is not distinguishable by eye
+            // and is roughly a third fewer bytes - bytes the student pays to
+            // upload on mobile data, and every visitor pays to download.
+          }, 'image/jpeg', S.JPEG_QUALITY);
         }, {
           maxWidth: maxWidth || 800,
           maxHeight: maxHeight || 800,

@@ -62,7 +62,19 @@
         <section class="place-items">
           {{# attachments }}
           <div class="place-item place-item-attachment place-attachment-{{ name }}">
-            <img src="{{ file }}" class="place-value place-value-{{ name }}" alt="{{ name }}">
+            {{!-- width/height are not decoration. The api records the real
+                  stored size of every attachment, and handing those to the
+                  browser lets it reserve the right box before the photo
+                  arrives, so the text below does not jump down the page when
+                  it does. They set the shape only: the img rule in
+                  default.css is max-width 100% / height auto, so the picture
+                  still scales to the panel.
+                  lazy means a second or third photo further down the panel
+                  waits until it is scrolled to, instead of competing with the
+                  one the visitor is actually looking at. --}}
+            <img src="{{ file }}" class="place-value place-value-{{ name }}" alt="{{ name }}"
+                 {{#if width}}width="{{ width }}" height="{{ height }}"{{/if}}
+                 loading="lazy" decoding="async">
           </div>
           {{/ attachments }}
           {{#each_place_item "submitter_name" "name" "location_type" "stay_duration" "contact_number" "contact_role"}}
