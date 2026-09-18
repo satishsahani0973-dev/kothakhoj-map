@@ -721,6 +721,91 @@ def sitemap_xml(request):
     return HttpResponse(xml, content_type='application/xml')
 
 
+# The college sheet, served from our own domain instead of Google's.
+#
+# Measured from Butwal on 2026-09-18, the browser's direct fetch of the
+# published Google Sheet took 3,471ms - five times slower than anything else
+# on the page, and it sits in front of every college pin. The page is only
+# 54 KB in total, so this was never bandwidth: it is a round trip to Google
+# from a connection with 300ms of latency, plus a redirect.
+#
+# This server sits next to Google by comparison - the same fetch takes 1.45s
+# from the droplet - and after the first one it takes nothing at all. The
+# slow hop moves off the student's phone and onto a machine that barely
+# notices it.
+_COLLEGES_CSV_URL = (
+    'https://docs.google.com/spreadsheets/d/e/'
+    '2PACX-1vTgmcyTZFZwmOXuMdam-su8Zq-GIs42qhJXS0G-jmZ6Fi9MUfQseKakGXKiH2'
+    'ATNvrn2ESTQE1aGRvj/pub?gid=0&single=true&output=csv')
+_COLLEGES_TTL_SECONDS = 600
+_COLLEGES_DISK_COPY = '/tmp/kk-colleges.csv'
+
+# Per worker. Gunicorn runs several, so each fetches at most once per TTL -
+# a handful of requests to Google per hour rather than one per visitor.
+_colleges_cache = {'text': None, 'at': 0.0}
+
+
+def _colleges_response(text, source):
+    response = HttpResponse(text, content_type='text/csv; charset=utf-8')
+    # Lets the browser and Cloudflare both hold it, so a returning visitor
+    # usually spends no round trip at all. This replaces the localStorage
+    # caching the map used to do by hand.
+    response['Cache-Control'] = 'public, max-age=%d' % _COLLEGES_TTL_SECONDS
+    # Visible in devtools when working out where a stale list came from.
+    response['X-KK-Colleges-Source'] = source
+    return response
+
+
+def colleges_csv(request):
+    """The college list, proxied and cached. Never fails while a copy exists."""
+    now_ts = time.time()
+
+    cached = _colleges_cache['text']
+    if cached and (now_ts - _colleges_cache['at']) < _COLLEGES_TTL_SECONDS:
+        return _colleges_response(cached, 'memory')
+
+    try:
+        upstream = requests.get(_COLLEGES_CSV_URL, timeout=8)
+        upstream.raise_for_status()
+        # Google serves UTF-8; say so explicitly rather than letting requests
+        # guess, because every Nepali alias in the sheet depends on it.
+        upstream.encoding = 'utf-8'
+        text = upstream.text
+        if text and text.strip():
+            _colleges_cache['text'] = text
+            _colleges_cache['at'] = now_ts
+            try:
+                # newline='' matters: Google serves this file with CRLF, and
+                # without it python's universal-newline translation rewrites
+                # them to LF on the way back in. The copy we fall back to
+                # would then differ from the live one by one byte per row -
+                # 147 bytes, silently, only on the day Google is unreachable.
+                with open(_COLLEGES_DISK_COPY, 'w',
+                          encoding='utf-8', newline='') as handle:
+                    handle.write(text)
+            except OSError:
+                pass  # a missing disk copy only costs us the cold-start path
+            return _colleges_response(text, 'google')
+    except requests.RequestException:
+        log.warning('college sheet fetch failed; falling back to a saved copy')
+
+    # Google is unreachable or gave us nothing. An old list beats a bare map:
+    # colleges are the only thing on it until rooms arrive.
+    if cached:
+        return _colleges_response(cached, 'stale-memory')
+    try:
+        with open(_COLLEGES_DISK_COPY, encoding='utf-8', newline='') as handle:
+            text = handle.read()
+        if text.strip():
+            _colleges_cache['text'] = text
+            _colleges_cache['at'] = now_ts
+            return _colleges_response(text, 'stale-disk')
+    except OSError:
+        pass
+
+    return HttpResponse('', status=503, content_type='text/csv; charset=utf-8')
+
+
 def csv_download(request, path):
     """
     A small proxy for a Shareabouts API server, exposing only

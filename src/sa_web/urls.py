@@ -5,6 +5,8 @@ from sa_login import views as login_views
 
 urlpatterns = [
     path('robots.txt', views.robots_txt, name='robots_txt'),
+    # Must stay above the catch-all below, which swallows everything.
+    path('colleges.csv', views.colleges_csv, name='colleges_csv'),
     path('sitemap.xml', views.sitemap_xml, name='sitemap_xml'),
     re_path(r'^api/(.*)$', views.api, name='api_proxy'),
     path('users/logout/', login_views.logout_view, name='logout'),

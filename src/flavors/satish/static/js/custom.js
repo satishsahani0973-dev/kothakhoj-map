@@ -1279,7 +1279,10 @@
   // Each college gets a small dark cap marker, a name chip from zoom 13,
   // and a light dashed circle approximating the campus area, so rooms
   // (green/orange pins) stay the loudest thing on the map.
-  var COLLEGES_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTgmcyTZFZwmOXuMdam-su8Zq-GIs42qhJXS0G-jmZ6Fi9MUfQseKakGXKiH2ATNvrn2ESTQE1aGRvj/pub?gid=0&single=true&output=csv';
+  // Served by our own Django view, which fetches the sheet once per ten
+  // minutes and caches it. Fetching Google straight from the browser cost
+  // 3,471ms measured from Butwal, in front of every college pin.
+  var COLLEGES_CSV_URL = '/colleges.csv';
   var COLLEGE_LABEL_MIN_ZOOM = 13;
   var CAMPUS_RADIUS_METERS = 300;
 

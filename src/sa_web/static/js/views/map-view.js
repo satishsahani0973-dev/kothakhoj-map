@@ -201,7 +201,7 @@ var Shareabouts = Shareabouts || {};
     },
     initLocalSearch: function() {
       var self = this;
-      var SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTgmcyTZFZwmOXuMdam-su8Zq-GIs42qhJXS0G-jmZ6Fi9MUfQseKakGXKiH2ATNvrn2ESTQE1aGRvj/pub?gid=0&single=true&output=csv";
+      var SHEET_CSV_URL = "/colleges.csv";  // see views.colleges_csv
 
       function geocodeMapbox(query, callback) {
         var params = {
