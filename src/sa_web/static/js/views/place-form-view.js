@@ -181,6 +181,10 @@ var Shareabouts = Shareabouts || {};
           model = this.model,
           newPlaceUrl = '/place/' + model.id + '/new';
 
+      // The room exists. Anything typed after this is a different room and
+      // must get its own key.
+      this._attemptKey = null;
+
       // Remember this place as one of "mine" so it can be highlighted on the
       // map, and tell the map to repaint it gold right away.
       S.Util.addMyPlaceId(model.id);
@@ -256,8 +260,25 @@ var Shareabouts = Shareabouts || {};
 
       S.Util.setStickyFields(attrs, S.Config.survey.items, S.Config.place.items);
 
+      // One key per room being composed, not per request.
+      //
+      // Minted on the first Save and kept until a save actually succeeds, so
+      // a retry carries the SAME key and the server recognises it as the same
+      // attempt rather than a second room. Deliberately not minted in
+      // initialize() or render(): if this view were ever reused for a second
+      // room, a key from the first would suppress the second one entirely -
+      // a far worse bug than the duplicate it is meant to prevent.
+      //
+      // This is the other half of the fix. The error message tells the
+      // student to "press Save again", which is right - but only safe
+      // because the second press now says which attempt it belongs to.
+      if (!this._attemptKey) {
+        this._attemptKey = S.Util.newAttemptKey();
+      }
+
       // Save and redirect
       this.model.save(attrs, {
+        headers: { 'X-KothaKhoj-Idempotency-Key': this._attemptKey },
         success: () => { this.onSaveSuccess(model); },
         error: (m, response) => { this.onSaveError(model, response); },
         complete: () => { this.onSaveComplete(model); },

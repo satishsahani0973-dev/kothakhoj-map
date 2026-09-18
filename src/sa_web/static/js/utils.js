@@ -138,6 +138,40 @@ var Shareabouts = Shareabouts || {};
     // is the one case nothing can be done about here.
     sheetCsvPromises: {},
 
+    // A random name for one attempt to save a room. Sent with the save and
+    // re-sent unchanged on every retry of it, so the server can tell "the
+    // same save, pressed again" from "a second room".
+    //
+    // crypto.randomUUID needs a recent browser AND a secure context. Plenty
+    // of the phones this runs on have neither, and a student whose browser
+    // is a year old must still be protected from duplicate rooms - so there
+    // is a fallback, and it is not optional.
+    //
+    // The fallback does not need to be unguessable, only unlikely to collide
+    // with another attempt: nobody gains anything by guessing one, and the
+    // server only ever compares it to keys it already holds.
+    newAttemptKey: function() {
+      try {
+        if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+          return window.crypto.randomUUID();
+        }
+        if (window.crypto && typeof window.crypto.getRandomValues === 'function') {
+          var bytes = new Uint8Array(16);
+          window.crypto.getRandomValues(bytes);
+          var hex = '';
+          for (var i = 0; i < bytes.length; i++) {
+            hex += ('0' + bytes[i].toString(16)).slice(-2);
+          }
+          return hex;
+        }
+      } catch (e) {
+        // A locked-down browser can throw rather than simply lack the API.
+      }
+      return 'k' + Date.now().toString(36) +
+             Math.random().toString(36).slice(2, 12) +
+             Math.random().toString(36).slice(2, 12);
+    },
+
     getSheetCsv: function(url) {
       if (S.Util.sheetCsvPromises[url]) {
         return S.Util.sheetCsvPromises[url];
