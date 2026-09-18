@@ -109,7 +109,11 @@ say "verifying"
 ok=no
 i=1
 while [ "$i" -le 10 ]; do
-  code=$(ssh "$SERVER" "curl -s -o /dev/null -w '%{http_code}' --max-time 10 http://127.0.0.1:8080/ || echo 000")
+  # Send the real Host header. This map's ALLOWED_HOSTS is '*' so it would
+  # pass either way today, but that is luck rather than design: the moment
+  # ALLOWED_HOSTS is tightened, a bare request becomes a 400 and this script
+  # would roll back a perfectly good deploy. The api script hit exactly that.
+  code=$(ssh "$SERVER" "curl -s -o /dev/null -w '%{http_code}' --max-time 10 -H 'Host: kothakhoj.com' http://127.0.0.1:8080/ || echo 000")
   printf '  attempt %s: %s\n' "$i" "$code"
   if [ "$code" = "200" ]; then ok=yes; break; fi
   sleep 3
