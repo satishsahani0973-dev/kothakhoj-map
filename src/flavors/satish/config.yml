@@ -208,15 +208,47 @@ place:
       type: location
       name: address
       placeholder: _(Set by the button above, or drag the map.)
+    # The address is ONE question asked on ONE line: landmark, lane, house
+    # number. Butwal is not navigated by street numbers - it is navigated by
+    # "the AMDA hospital side, Amar Singh path". Splitting these apart was
+    # forced by what posters already do: both of the first real rooms crammed
+    # the lane into the name field ("Hilpark butwal BP path", "Amda hospital
+    # amar Singh path"), because there was nowhere else to put it.
+    #
+    # They sit side by side through custom.css (.place-name-field and the two
+    # beside it); there is no grouping concept in this config, so the layout
+    # lives in the stylesheet.
+    #
+    # Name is REQUIRED - it is the <h1> of the room page. An unnamed room
+    # falls back to a generic location string, which is what place 41 shows.
     - prompt: _(Location Name)
       type: text
       name: name
+      attrs:
+        - key: required
+          value: required
+        - key: placeholder
+          value: _(e.g. AMDA hospital)
+        - key: size
+          value: 30
+    - prompt: _(Path)
+      type: text
+      name: path
       optional: true
       attrs:
         - key: placeholder
-          value: _(Location Name)
+          value: _(e.g. Amar Singh path)
         - key: size
-          value: 30
+          value: 20
+    - prompt: _(House No.)
+      type: text
+      name: house_number
+      optional: true
+      attrs:
+        - key: placeholder
+          value: _(e.g. 12)
+        - key: size
+          value: 8
     # Radio group, not a select: the three choices stay visible and take one
     # tap. Styled as chips in custom.css. (Field name stays location_type so
     # existing rooms and the pin-colour rules keep working.)

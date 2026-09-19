@@ -10,6 +10,14 @@
 
         <header class="place-header clearfix">
           <h1>{{#if name }}{{ name }}{{^}}{{>location-string .}}{{/if}}</h1>
+          {{!-- Lane and house number are printed here as ONE line under the
+                landmark, not as two labelled rows further down. An address is
+                a single thing to a reader; splitting it into "Path: ..." and
+                "House No.: ..." would make somebody assemble it themselves.
+                Both parts are optional, so the helper prints nothing at all
+                when there is nothing to say - which is also why no empty-row
+                CSS is needed. --}}
+          {{ address_line path house_number }}
           {{!-- The posted-on stamp sits beside the availability badge, not
                 buried in the submitter sentence below. Every date on this
                 page is a prediction; this one is a fact, and near AMDA
@@ -77,7 +85,7 @@
                  loading="lazy" decoding="async">
           </div>
           {{/ attachments }}
-          {{#each_place_item "submitter_name" "name" "location_type" "stay_duration" "contact_number" "contact_role"}}
+          {{#each_place_item "submitter_name" "name" "path" "house_number" "location_type" "stay_duration" "contact_number" "contact_role"}}
           <div class="place-item place-item-{{ name }}">
             <span class="place-label place-label-{{ name }}">{{ label }}</span>
             <p class="place-value place-value-{{ name }}">{{nlToBr value }}</p>

@@ -655,6 +655,40 @@ body.signin-gate #list-container {
    radio inside its own label with a .radio-label-text span, so the span is
    the chip and the radio itself is taken out of sight (not display:none —
    that would drop it from the tab order and from screen readers). */
+/* The lane and house number, printed under the landmark. Quiet on purpose:
+   it is the second half of the title, not a field of its own. */
+.place-address-line {
+  margin: 0 0 0.35em;
+  color: #666;
+  font-size: 0.95em;
+}
+
+/* ---- The address, asked on one line -------------------------------------
+   Landmark, lane and house number are one question, not three. Butwal is
+   navigated by "the AMDA hospital side, Amar Singh path" - nobody thinks of
+   those as three separate answers, and stacking them would ask the same
+   question three times down the form.
+
+   The row is built here because config.yml has no grouping concept: every
+   field renders as its own .field div, siblings inside one <fieldset>.
+
+   Floats, not inline-block: inline-block leaves a whitespace gap between
+   boxes that then has to be hacked out of the widths. These add to exactly
+   100%.
+
+   location_type is the field that comes next, so it clears the row. If a
+   field is ever inserted between house number and room type, move the clear
+   onto it, or the radio buttons will ride up beside the house number. */
+.place-form .place-name-field,
+.place-form .place-path-field,
+.place-form .place-house_number-field {
+  float: left;
+}
+.place-form .place-name-field       { width: 46%; margin-right: 3%; }
+.place-form .place-path-field       { width: 29%; margin-right: 3%; }
+.place-form .place-house_number-field { width: 19%; }
+.place-form .place-location_type-field { clear: both; }
+
 .place-form .radio-group {
   margin: 2px 0 4px;
 }

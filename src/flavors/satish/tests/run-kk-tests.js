@@ -925,6 +925,42 @@ check('block: too-short number -> no call button either', () => {
   const html = KK.contact.blockHtml('12345', 'owner');
   assert.ok(!html.includes('tel:'), 'a half-typed number must not render a dead button');
 });
+// ---- address line ----
+console.log('address');
+check('both parts present -> one line, lane first', () => {
+  assert.strictEqual(KK.address.lineHtml('Amar Singh path', '12'),
+    '<p class="place-address-line">Amar Singh path, House 12</p>');
+});
+check('lane only -> no stray comma, no "House"', () => {
+  assert.strictEqual(KK.address.lineHtml('BP path', ''),
+    '<p class="place-address-line">BP path</p>');
+});
+check('house only -> the word House is written out', () => {
+  // A bare number next to nothing reads as part of a lane name.
+  assert.strictEqual(KK.address.lineHtml('', '12'),
+    '<p class="place-address-line">House 12</p>');
+});
+check('nothing known -> renders NOTHING, not an empty element', () => {
+  // The detail panel has no :empty rule - the ones in default.css are scoped
+  // to .place-list - so an empty <p> would leave a gap under every title.
+  assert.strictEqual(KK.address.lineHtml('', ''), '');
+  assert.strictEqual(KK.address.lineHtml(null, undefined), '');
+  assert.strictEqual(KK.address.lineHtml('   ', '  '), '');
+});
+check('markup in either part is neutralised', () => {
+  const html = KK.address.lineHtml('<img src=x onerror=alert(1)>', '"><script>');
+  assert.ok(!html.includes('<img'), 'raw tag leaked from the lane');
+  assert.ok(!html.includes('<script'), 'raw tag leaked from the house number');
+});
+check('helper: a template passing only the lane does not print the options object', () => {
+  // Handlebars appends its own options object as the last argument, so a
+  // one-argument call would otherwise stringify it into the address.
+  const out = String(Handlebars.helpers.address_line('BP path', {}));
+  assert.ok(out.includes('BP path'), out);
+  assert.ok(!out.includes('House'), 'the options object was treated as a house number: ' + out);
+  assert.ok(!out.includes('object'), out);
+});
+
 check('telHref and waLink always agree about the number they reach', () => {
   ['9812345678', '098-1234-5678', '977 9812345678', '+9779812345678'].forEach(n => {
     const tel = KK.contact.telHref(n);

@@ -611,6 +611,29 @@
     }
   };
 
+  // ---- Address line -------------------------------------------------------
+  // The lane and the house number, printed as ONE line under the landmark.
+  //
+  // Both are optional and usually only one is known - Butwal runs on lanes
+  // and landmarks, and plenty of houses have no number anyone can tell you.
+  // So every combination has to read properly on its own, and an empty pair
+  // must produce NOTHING rather than an empty element: the detail panel has
+  // no :empty rule (the ones in default.css are scoped to .place-list), so a
+  // stray wrapper would leave a blank gap under every title.
+  KK.address = {
+    lineHtml: function(path, house) {
+      var p = String(path == null ? '' : path).trim();
+      var h = String(house == null ? '' : house).trim();
+      var parts = [];
+      if (p) { parts.push(KK.esc(p)); }
+      // "House" is written out because a bare number beside a lane name reads
+      // as part of the lane.
+      if (h) { parts.push('House ' + KK.esc(h)); }
+      if (!parts.length) { return ''; }
+      return '<p class="place-address-line">' + parts.join(', ') + '</p>';
+    }
+  };
+
   if (window.Handlebars) {
     // Called as {{ free_badge free_ts free_state }}. Handlebars always
     // appends its own options object, so when a template passes only one
@@ -637,6 +660,14 @@
     });
     window.Handlebars.registerHelper('contact_block', function(number, role) {
       return new window.Handlebars.SafeString(KK.contact.blockHtml(number, role));
+    });
+    window.Handlebars.registerHelper('address_line', function(path, house) {
+      // Handlebars appends its own options object, so a template that passes
+      // only one argument would hand that object in as `house`. Anything that
+      // is not a string is treated as absent.
+      var p = typeof path === 'string' ? path : '';
+      var h = typeof house === 'string' ? house : '';
+      return new window.Handlebars.SafeString(KK.address.lineHtml(p, h));
     });
     window.Handlebars.registerHelper('report_block', function(id, name) {
       var n = typeof name === 'string' ? name : '';
