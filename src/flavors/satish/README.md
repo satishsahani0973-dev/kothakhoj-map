@@ -10,7 +10,7 @@ most of these look like small config edits and are not.
 | Location (address / map pin) | yes | GPS button first, drag as fallback |
 | Room Type | yes | single / double / flat |
 | **Owner's Contact Number** | **yes, since 2026-09-18** | see below |
-| Location Name | yes | first box of the address row, see below |
+| Location Name | no | first box of the address row, see below |
 | House No. | no | second box of the address row |
 | Path Name | no | third box of the address row |
 | Description | no | |
@@ -86,11 +86,16 @@ to group fields; every field renders as its own `.field` div, siblings inside
 one `<fieldset>`. So the shared line is written into the `name` field's prompt
 and the other two labels are hidden in `custom.css`.
 
-**`optional: true` sits on a field that is required.** That flag only prints
-"(optional)" beside the label — it enforces nothing (see the contact number
-section above). It is on `name` purely to put the marker at the end of the
-shared line, because the last box, Path Name, is the optional one. The
-`required` attr on the same field is what actually enforces.
+**All three boxes are optional, and one "(optional)" at the end of the line
+covers all three.** Location Name was briefly made required. That was a
+mistake, and the live form is what made it obvious: every other `(optional)`
+on this form marks a whole field, so a required box sitting under a line that
+ends in "(optional)" is a trap — the error only shows up when Submit is
+pressed, pointing at a box the poster was told they could skip.
+
+A nameless room falls back to a generic location string on its own page
+(place 41 is one of these). That is a worse room page. It is not a reason to
+stop somebody posting a room.
 
 **The two hidden labels are `visibility: hidden`, not `display: none`.** They
 have to keep occupying their line, or their boxes start at a different height
