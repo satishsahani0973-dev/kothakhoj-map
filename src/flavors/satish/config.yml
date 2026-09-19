@@ -219,11 +219,24 @@ place:
     # beside it); there is no grouping concept in this config, so the layout
     # lives in the stylesheet.
     #
+    # ONE label covers all three boxes, so it is written into the first
+    # field's prompt and the other two labels are hidden in custom.css. That
+    # is also why optional: true sits on a REQUIRED field here - the flag only
+    # prints "(optional)" beside the label (see form-field-label.html), it
+    # enforces nothing, and the marker belongs at the end of the shared line
+    # because the last box, Path Name, is the optional one. The `required`
+    # attr below is the part that actually enforces.
+    #
+    # Because the other two labels are hidden from screen readers, those two
+    # inputs carry their own aria-label.
+    #
     # Name is REQUIRED - it is the <h1> of the room page. An unnamed room
     # falls back to a generic location string, which is what place 41 shows.
-    - prompt: _(Location Name)
+    # Field order here is the on-screen order: name, house number, path.
+    - prompt: _(Location Name, House No., Path Name)
       type: text
       name: name
+      optional: true
       attrs:
         - key: required
           value: required
@@ -231,24 +244,28 @@ place:
           value: _(e.g. AMDA hospital)
         - key: size
           value: 30
-    - prompt: _(Path)
-      type: text
-      name: path
-      optional: true
-      attrs:
-        - key: placeholder
-          value: _(e.g. Amar Singh path)
-        - key: size
-          value: 20
     - prompt: _(House No.)
       type: text
       name: house_number
       optional: true
       attrs:
+        - key: aria-label
+          value: _(House No. (optional))
         - key: placeholder
           value: _(e.g. 12)
         - key: size
           value: 8
+    - prompt: _(Path Name)
+      type: text
+      name: path
+      optional: true
+      attrs:
+        - key: aria-label
+          value: _(Path Name (optional))
+        - key: placeholder
+          value: _(e.g. Amar Singh path)
+        - key: size
+          value: 20
     # Radio group, not a select: the three choices stay visible and take one
     # tap. Styled as chips in custom.css. (Field name stays location_type so
     # existing rooms and the pin-colour rules keep working.)

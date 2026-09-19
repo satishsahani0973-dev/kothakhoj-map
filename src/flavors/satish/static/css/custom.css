@@ -673,21 +673,61 @@ body.signin-gate #list-container {
    field renders as its own .field div, siblings inside one <fieldset>.
 
    Floats, not inline-block: inline-block leaves a whitespace gap between
-   boxes that then has to be hacked out of the widths. These add to exactly
-   100%.
+   boxes that then has to be hacked out of the widths.
+
+   The widths add to 99%, not 100%. At 100% sub-pixel rounding pushed the
+   third box onto its own line on a 375px phone - measured, not guessed.
+   Every margin below is stated explicitly for the same reason: leaving one
+   out lets an earlier rule supply a margin and the row wraps again.
 
    location_type is the field that comes next, so it clears the row. If a
-   field is ever inserted between house number and room type, move the clear
-   onto it, or the radio buttons will ride up beside the house number. */
+   field is ever inserted between path and room type, move the clear onto it,
+   or the radio buttons will ride up beside the last box. */
 .place-form .place-name-field,
-.place-form .place-path-field,
-.place-form .place-house_number-field {
+.place-form .place-house_number-field,
+.place-form .place-path-field {
   float: left;
 }
-.place-form .place-name-field       { width: 46%; margin-right: 3%; }
-.place-form .place-path-field       { width: 29%; margin-right: 3%; }
-.place-form .place-house_number-field { width: 19%; }
+.place-form .place-name-field         { width: 44%; margin-right: 2%; }
+.place-form .place-house_number-field { width: 18%; margin-right: 2%; }
+.place-form .place-path-field         { width: 33%; margin-right: 0; }
 .place-form .place-location_type-field { clear: both; }
+
+/* One label for the whole row: "Location Name, House No., Path Name
+   (optional)". It is written into the first field's prompt in config.yml,
+   so it lives inside a 44%-wide column and has to run past that column's
+   right edge - which is fine, because the two labels it runs over are not
+   drawn. Measured at 291px, so it still fits a 320px phone without any
+   sideways scroll.
+
+   visibility: hidden, not display: none - the hidden labels must keep
+   taking up their line so all three boxes start at the same height. nowrap
+   on all three keeps every label exactly one line tall; without it
+   "HOUSE NO." wraps inside its narrow column and drops that box.
+
+   visibility: hidden also takes those labels away from screen readers, so
+   both inputs carry an aria-label in config.yml.
+
+   The two hidden labels are also display: block + overflow: hidden. They are
+   invisible, but nowrap text still counts towards the page's scroll width,
+   and on a 320px phone "Path Name (optional)" sitting in the third column
+   ran 11px past the form and gave the whole page a sideways scrollbar.
+   Clipping them costs nothing - nobody can see them anyway.
+
+   The one label that IS drawn is 291px wide. That fits a 320px phone with a
+   few pixels spare. If this line is ever translated into something longer,
+   or a fourth box is added, re-measure before shipping. */
+.place-form .place-name-field .field-label,
+.place-form .place-house_number-field .field-label,
+.place-form .place-path-field .field-label {
+  display: block;
+  white-space: nowrap;
+}
+.place-form .place-house_number-field .field-label,
+.place-form .place-path-field .field-label {
+  visibility: hidden;
+  overflow: hidden;
+}
 
 .place-form .radio-group {
   margin: 2px 0 4px;

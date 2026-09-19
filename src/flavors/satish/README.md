@@ -10,7 +10,9 @@ most of these look like small config edits and are not.
 | Location (address / map pin) | yes | GPS button first, drag as fallback |
 | Room Type | yes | single / double / flat |
 | **Owner's Contact Number** | **yes, since 2026-09-18** | see below |
-| Location Name | no | |
+| Location Name | yes | first box of the address row, see below |
+| House No. | no | second box of the address row |
+| Path Name | no | third box of the address row |
 | Description | no | |
 | Image | no | shrunk to 1000px in the browser before upload |
 
@@ -62,6 +64,59 @@ Two things already reduce the exposure, and are worth being able to say aloud:
   that listed them, not to us.
 - Every room carries a **"Room already taken, wrong rent, or not real?"** link
   to WhatsApp or email, so a student can object without going via the college.
+
+## The address is one question, not three
+
+Butwal is not navigated by street numbers. It is navigated by "the AMDA
+hospital side, Amar Singh path". Both of the first real rooms proved it: each
+one crammed the lane into the name box ("Hilpark butwal BP path", "Amda
+hospital amar Singh path"), because there was nowhere else to put it.
+
+So the form asks it as one line — one label over three boxes:
+
+```
+LOCATION NAME, HOUSE NO., PATH NAME (optional)
+[ e.g. AMDA hospital ] [ e.g. 12 ] [ e.g. Amar Singh path ]
+```
+
+Three things make that work, and each one looks wrong on its own.
+
+**The whole label lives in the first field's prompt.** `config.yml` has no way
+to group fields; every field renders as its own `.field` div, siblings inside
+one `<fieldset>`. So the shared line is written into the `name` field's prompt
+and the other two labels are hidden in `custom.css`.
+
+**`optional: true` sits on a field that is required.** That flag only prints
+"(optional)" beside the label — it enforces nothing (see the contact number
+section above). It is on `name` purely to put the marker at the end of the
+shared line, because the last box, Path Name, is the optional one. The
+`required` attr on the same field is what actually enforces.
+
+**The two hidden labels are `visibility: hidden`, not `display: none`.** They
+have to keep occupying their line, or their boxes start at a different height
+and the row goes crooked. All three labels are `display: block` and `nowrap`
+so all three are exactly one line tall; the hidden two also get
+`overflow: hidden`, because invisible nowrap text still counts towards the
+page's scroll width — without it a 320px phone got a sideways scrollbar.
+
+Hiding a label also hides it from screen readers, so `house_number` and `path`
+carry their own `aria-label` in `config.yml`.
+
+### Before you change these widths
+
+The three columns add to **99%, not 100%**. At 100%, sub-pixel rounding pushed
+the third box onto its own line on a 375px phone. Every margin is stated
+explicitly, including `margin-right: 0` on the last one — leave one out and an
+earlier rule supplies a margin and the row wraps again.
+
+Measured at 320 / 375 / 414 / 700 / 1200px: boxes level, no sideways scroll.
+The drawn label is 291px wide and the form is 296px at 320px, so there are
+**5px of slack**. Translate this line into anything longer, or add a fourth
+box, and it will overflow — re-measure before shipping.
+
+`location_type` is the field that comes next, so it carries the `clear: both`.
+Insert a field between Path Name and Room Type and you must move that clear
+onto it, or the room-type chips ride up beside the last box.
 
 ## Taking rooms off the map
 
