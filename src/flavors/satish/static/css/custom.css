@@ -1066,6 +1066,17 @@ body.kk-scanning #content {
 @media only screen and (max-width: 59.9375em) {
   body:not(.content-visible) .kk-legend { bottom: 8.5em; }
 }
+/* Laptop browse screen: default.css floats that same button into this very
+   corner from its own min-width:60em block (left 1.5em, bottom 2em), so the
+   legend has to clear it at this width too - the phone lift above is scoped
+   to max-width and never reaches here. Measured on the live site at 1440px:
+   the button's top edge sits 109px off the bottom, the legend's was 34px.
+
+   rem, not em: .kk-legend sets font-size 12px, so 8.5em here would be 102px
+   and the card would still land on top of the button. */
+@media only screen and (min-width: 60em) {
+  .kk-legend { bottom: 7.5rem; }
+}
 /* The route card owns the bottom of the screen for the whole directions
    flow — locating, route preview and walking alike — so the pin legend
    gets out of the way as soon as Directions is tapped. */
