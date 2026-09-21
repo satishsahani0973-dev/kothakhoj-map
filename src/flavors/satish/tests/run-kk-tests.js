@@ -1051,6 +1051,29 @@ check('month mode with NO month chosen does not offer it either', () => {
 check('offered but unticked stores nothing', () =>
   assert.strictEqual(KK.freeDate.hideDecision('date', true, false).value, ''));
 
+console.log('validationMessage');
+const MISSING = { valueMissing: true };
+const BADPATTERN = { valueMissing: false, patternMismatch: true };
+check('an empty contact number says WHY it is needed, not "fill this in"', () => {
+  const m = KK.validationMessage('contact_number', MISSING);
+  assert.ok(m.includes('nobody can reach you'), m);
+});
+check('a malformed number says what a good one looks like', () => {
+  const m = KK.validationMessage('contact_number', BADPATTERN);
+  assert.ok(/98, 97 or 96/.test(m), m);
+  assert.ok(!m.includes('nobody can reach you'), 'wrong branch: this one is not empty');
+});
+check('an unchosen room type names the three choices', () => {
+  const m = KK.validationMessage('location_type', MISSING);
+  assert.ok(/single room, double room or flat/i.test(m), m);
+});
+check('other fields keep the browser wording', () =>
+  assert.strictEqual(KK.validationMessage('description', MISSING), ''));
+check('a field with nothing wrong gets no message', () =>
+  assert.strictEqual(KK.validationMessage('contact_number', { valueMissing: false }), ''));
+check('a missing validity object does not throw', () =>
+  assert.strictEqual(KK.validationMessage('contact_number', null), ''));
+
 console.log('hiddenNotice');
 const HN_FUTURE = Date.now() + 40 * 86400000;
 const HN_PAST = Date.now() - 86400000;

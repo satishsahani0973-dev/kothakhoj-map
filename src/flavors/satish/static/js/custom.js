@@ -496,6 +496,38 @@
     return { state: 'later', label: KK.bsLabel(ts) };
   };
 
+  // ---- what to say when a required field is empty ------------------------
+  // The browser already blocks the submit - both fields carry `required`, and
+  // place-form-view.js binds 'submit', so native validation runs first. What
+  // it says is "Please fill out this field", in the BROWSER's language, which
+  // tells a student nothing about why the field is there.
+  //
+  // These replace the text and keep the native machinery. Each one says what
+  // to do and what it costs to skip, because "required" is an assertion about
+  // our form and "nobody can reach you" is a fact about their room.
+  KK.validationMessage = function(name, validity) {
+    if (!validity) { return ''; }
+
+    if (name === 'contact_number') {
+      if (validity.valueMissing) {
+        return 'Add a phone number. Students ring this number - without it ' +
+          'nobody can reach you about the room.';
+      }
+      if (validity.patternMismatch || validity.tooShort) {
+        return 'That does not look like a Nepali mobile number. It should be ' +
+          '10 digits starting 98, 97 or 96.';
+      }
+    }
+
+    if (name === 'location_type' && validity.valueMissing) {
+      return 'Choose the room type - single room, double room or flat.';
+    }
+
+    // Anything else keeps the browser's own wording. A half-translated form
+    // reads worse than a consistent one.
+    return '';
+  };
+
   // ---- "only you can see this" ------------------------------------------
   // A hidden room is still listed for the person who posted it (the API
   // returns their own invisible places). Without this line they open their
@@ -1699,6 +1731,36 @@
     }
     refreshFreePicker($picker);
   });
+
+  // 'invalid' does NOT bubble, so jQuery delegation cannot see it - this has
+  // to be a capturing listener on the document. Getting that wrong fails
+  // silently: the handler never runs and the browser's default text shows,
+  // which looks exactly like the feature working badly rather than not at all.
+  (function() {
+    // Guarded because this file is also loaded by run-kk-tests.js, which
+    // stubs document as a plain object with no addEventListener. Without the
+    // guard the whole file throws at load and every test dies - which is how
+    // this was found.
+    if (!document || typeof document.addEventListener !== 'function') { return; }
+
+    function applyMessage(el) {
+      if (!el || !el.setCustomValidity) { return; }
+      var msg = KK.validationMessage(el.name, el.validity);
+      el.setCustomValidity(msg);
+    }
+    document.addEventListener('invalid', function(evt) {
+      applyMessage(evt.target);
+    }, true);
+    // Clear as soon as they start fixing it. Without this the custom message
+    // STICKS: setCustomValidity makes the field permanently invalid until it
+    // is set back to '', so a corrected number would still refuse to submit.
+    function clear(evt) {
+      var el = evt.target;
+      if (el && el.setCustomValidity) { el.setCustomValidity(''); }
+    }
+    document.addEventListener('input', clear, true);
+    document.addEventListener('change', clear, true);
+  })();
 
   $(document).on('change', '.free-picker .free-hide-check', function() {
     refreshFreePicker($(this).closest('.free-picker'));
