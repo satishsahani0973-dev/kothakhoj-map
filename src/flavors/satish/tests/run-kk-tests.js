@@ -1012,6 +1012,58 @@ check('the question sits ABOVE the field set, not below the photo upload', () =>
   assert.ok(picker !== -1 && fieldSet !== -1);
   assert.ok(picker < fieldSet, 'the picker is still buried below the other fields');
 });
+// ---- hide until free ------------------------------------------------------
+// "Show my room on the map only after it is free". A final-year student posts
+// in Bhadra for a room that frees in Ashoj and still SLEEPS there; their
+// address should not be public for that whole gap.
+//
+// The rule these pin down is one-way: a poster can hide their own room, and
+// only the dated sweep or a moderator brings one back. A poster must never be
+// able to undo a hide applied for a college's privacy.
+console.log('freeDate.hideDecision');
+check('offered once a month is chosen', () => {
+  const d = KK.freeDate.hideDecision('date', true, false);
+  assert.strictEqual(d.offered, true);
+});
+check('ticking it with a month stores the marker', () => {
+  const d = KK.freeDate.hideDecision('date', true, true);
+  assert.strictEqual(d.value, 'yes');
+});
+check('NOT offered under "Not sure yet" - there is no date to come back on', () => {
+  const d = KK.freeDate.hideDecision('ask', false, true);
+  assert.strictEqual(d.offered, false);
+});
+check('a tick made under a month is CLEARED by switching to "Not sure yet"', () => {
+  // The trap this guards: hidden with no date is hidden forever, and the
+  // poster decides the site ate their room and posts it again.
+  const d = KK.freeDate.hideDecision('ask', false, true);
+  assert.strictEqual(d.value, '', 'a stale tick survived the switch');
+});
+check('NOT offered under "Free now" - the room is free already', () => {
+  assert.strictEqual(KK.freeDate.hideDecision('now', false, true).offered, false);
+  assert.strictEqual(KK.freeDate.hideDecision('now', false, true).value, '');
+});
+check('month mode with NO month chosen does not offer it either', () => {
+  const d = KK.freeDate.hideDecision('date', false, true);
+  assert.strictEqual(d.offered, false);
+  assert.strictEqual(d.value, '', 'stored a marker with no date behind it');
+});
+check('offered but unticked stores nothing', () =>
+  assert.strictEqual(KK.freeDate.hideDecision('date', true, false).value, ''));
+
+console.log('hide-until-free markup');
+check('the form carries a hide_until_free input, empty by default', () => {
+  assert.ok(/name="hide_until_free"\s+value=""/.test(formHtml),
+    'missing, or shipped pre-ticked');
+});
+check('the tick box ships hidden, so it cannot be used without a month', () => {
+  const box = formHtml.match(/<label[^>]*free-hide-until[^>]*>/);
+  assert.ok(box, 'no tick box in the form');
+  assert.ok(box[0].includes('is-hidden'), 'the box is visible before a month is picked');
+});
+check('the checkbox is not pre-checked', () =>
+  assert.ok(!/free-hide-check[^>]*checked/.test(formHtml), 'ships pre-ticked'));
+
 check('the old month-counter control is gone', () => {
   ['data-kind="year"', 'free-count-custom', 'or type'].forEach(dead =>
     assert.ok(!formHtml.includes(dead), 'leftover from the old picker: ' + dead));

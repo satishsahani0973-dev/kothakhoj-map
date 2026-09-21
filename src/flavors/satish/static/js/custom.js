@@ -1536,6 +1536,23 @@
         freeTs: String(KK.bsTs(choice.ad)),
         label: choice.m + ' ' + choice.y
       };
+    },
+
+    // Pure: may "hide until free" be offered, and what should be stored.
+    //
+    // Offered only in month mode with a month actually chosen. That is the
+    // whole guard against the one way this feature can hurt somebody: with
+    // "Not sure yet" there is no date, so a ticked box would take the room
+    // off the map with nothing that could ever bring it back. The poster
+    // would conclude the site lost their room and post it again, and we
+    // would have a duplicate and an angry landlord.
+    //
+    // `value` is '' whenever the box is not offered, so switching from
+    // "Pick a month" to "Not sure yet" CLEARS a tick that was already made
+    // rather than leaving it stored under an answer it does not fit.
+    hideDecision: function(kind, hasMonth, ticked) {
+      var offered = (kind === 'date' && !!hasMonth);
+      return { offered: offered, value: (offered && !!ticked) ? 'yes' : '' };
     }
   };
 
@@ -1559,6 +1576,24 @@
     $picker.find('input[name="free_ts"]').val(result.freeTs);
   }
 
+  // Draw and store the "hide until free" box. Called from every branch of
+  // refreshFreePicker, so there is no path through the picker that leaves a
+  // stale tick behind.
+  function writeHideUntilFree($picker, kind, label) {
+    var $box = $picker.find('.free-hide-until');
+    var $check = $picker.find('.free-hide-check');
+    var decision = KK.freeDate.hideDecision(kind, !!label, $check.prop('checked'));
+
+    $box.toggleClass('is-hidden', !decision.offered);
+    if (!decision.offered) { $check.prop('checked', false); }
+
+    $picker.find('.free-hide-why').text(
+      decision.offered && label ?
+        'Nobody will see it until ' + label + '. Tick this if you still live here.' :
+        '');
+    $picker.find('input[name="hide_until_free"]').val(decision.value);
+  }
+
   function refreshFreePicker($picker) {
     var kind = $picker.find('.free-kind.is-active').data('kind') || 'ask';
     var $months = $picker.find('.free-picker-months');
@@ -1571,6 +1606,7 @@
       $date.addClass('is-hidden');
       $note.addClass('is-hidden');
       writeFree($picker, KK.freeDate.compute('now'));
+      writeHideUntilFree($picker, 'now', '');
       $preview.html('Students will see: <span class="free-badge free-badge-now">Available now</span>');
       return;
     }
@@ -1579,6 +1615,7 @@
       $months.addClass('is-hidden');
       $date.addClass('is-hidden');
       writeFree($picker, KK.freeDate.compute('ask'));
+      writeHideUntilFree($picker, 'ask', '');
       $preview.html('Students will see: <span class="free-badge free-badge-ask">Someone lives here now — call and ask</span>');
       // Says out loud that the room is still listed. Without this the
       // honest answer feels like the one that gets you nothing.
@@ -1597,6 +1634,9 @@
       // stored value at "ask" until they actually choose one.
       $date.addClass('is-hidden');
       writeFree($picker, KK.freeDate.compute('ask'));
+      // Month mode with no month is stored as "ask", so the box must not be
+      // offered here either - there is still no date to come back on.
+      writeHideUntilFree($picker, 'date', '');
       $preview.html('Students will see: <span class="free-badge free-badge-ask">Someone lives here now — call and ask</span>');
       return;
     }
@@ -1607,6 +1647,7 @@
     $preview.html('Students will see: <span class="free-badge free-badge-later">Free from ' +
       KK.esc(result.label) + '</span>');
     writeFree($picker, result);
+    writeHideUntilFree($picker, 'date', result.label);
   }
 
   $(document).on('click', '.free-picker .free-kind', function() {
@@ -1619,6 +1660,10 @@
       $picker.find('.free-month').removeClass('is-active');
     }
     refreshFreePicker($picker);
+  });
+
+  $(document).on('change', '.free-picker .free-hide-check', function() {
+    refreshFreePicker($(this).closest('.free-picker'));
   });
 
   $(document).on('click', '.free-picker .free-month', function() {

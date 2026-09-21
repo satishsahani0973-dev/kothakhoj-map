@@ -56,9 +56,31 @@
             <p class="free-picker-preview" aria-live="polite">{{#_}}Students will see:{{/_}} <span class="free-badge free-badge-ask">{{#_}}Someone lives here now — call and ask{{/_}}</span></p>
             <p class="free-picker-note">{{#_}}Students will call and ask. Your room still shows on the map.{{/_}}</p>
 
+            {{!-- Offered ONLY once a month is chosen, and cleared the moment
+                  they leave month mode. With "Not sure yet" there is no date
+                  for the room to come back on, so a ticked box there would
+                  hide it forever with nothing to release it - and the poster
+                  would decide the site had eaten their room and post it
+                  again. custom.js (KK.freeDate.hideDecision) is what enforces
+                  that; this markup only draws it.
+
+                  The reason line matters more than the label. A student
+                  skimming a form on a phone does not stop to work out whether
+                  this applies to them - "tick this if you still live here"
+                  tells them. --}}
+            <label class="free-hide-until is-hidden">
+              <input type="checkbox" class="free-hide-check">
+              <span class="free-hide-label">{{#_}}Show my room on the map only after it is free{{/_}}</span>
+              <small class="free-hide-why" aria-live="polite"></small>
+            </label>
+
             <input type="hidden" name="free_state" value="ask">
             <input type="hidden" name="free_from" value="">
             <input type="hidden" name="free_ts" value="">
+            {{!-- Empty unless the box is both offered and ticked. The API
+                  turns a non-empty value here into visible=false; see
+                  Place.apply_hide_until_free. --}}
+            <input type="hidden" name="hide_until_free" value="">
           </div>
 
           {{> form-field-set form_config=place_config }}
