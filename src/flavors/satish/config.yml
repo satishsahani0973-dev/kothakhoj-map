@@ -316,9 +316,8 @@ place:
       label: _(Owner's Contact Number)
       type: text
       name: contact_number
+      optional: true
       attrs:
-        - key: required
-          value: required
         - key: placeholder
           value: _(e.g. 9812345678)
         - key: size

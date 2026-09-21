@@ -1054,14 +1054,13 @@ check('offered but unticked stores nothing', () =>
 console.log('validationMessage');
 const MISSING = { valueMissing: true };
 const BADPATTERN = { valueMissing: false, patternMismatch: true };
-check('an empty contact number says WHY it is needed, not "fill this in"', () => {
-  const m = KK.validationMessage('contact_number', MISSING);
-  assert.ok(m.includes('nobody can reach you'), m);
-});
+check('an empty contact number is NOT an error - it is optional', () =>
+  assert.strictEqual(KK.validationMessage('contact_number', MISSING), '',
+    'the number is optional; the browser never reports it missing'));
 check('a malformed number says what a good one looks like', () => {
   const m = KK.validationMessage('contact_number', BADPATTERN);
   assert.ok(/98, 97 or 96/.test(m), m);
-  assert.ok(!m.includes('nobody can reach you'), 'wrong branch: this one is not empty');
+  assert.ok(m.length > 0, 'a bad number must still be refused');
 });
 check('an unchosen room type names the three choices', () => {
   const m = KK.validationMessage('location_type', MISSING);

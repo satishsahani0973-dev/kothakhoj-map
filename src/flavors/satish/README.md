@@ -9,7 +9,7 @@ most of these look like small config edits and are not.
 |---|---|---|
 | Location (address / map pin) | yes | GPS button first, drag as fallback |
 | Room Type | yes | single / double / flat |
-| **Owner's Contact Number** | **yes, since 2026-09-18** | see below |
+| Owner's Contact Number | no | was compulsory 18-21 Sep 2026, see below |
 | Location Name | no | first box of the address row, see below |
 | House No. | no | second box of the address row |
 | Path Name | no | third box of the address row |
@@ -20,13 +20,27 @@ most of these look like small config edits and are not.
 it ships pre-selected as **Not sure yet**, so the form is already correct
 before anyone touches it.
 
-## The contact number is compulsory
+## The contact number: compulsory for three days, then optional again
 
-A room nobody can be reached about is not a listing. The contact block in
-`custom.js` says it plainly: *"the number is the product: the student rings
-from where he is sitting instead of walking the lanes."*
+It was made compulsory on 2026-09-18 and put back to optional on 2026-09-21.
+Both were the owner's call. The argument for compulsory has not gone away, so
+it is kept here rather than deleted — if it is ever turned back on, this is
+the section to re-read, and the mechanics below are exactly what to do.
 
-**Making it required took two changes, and neither works alone.**
+The argument FOR compulsory: a room nobody can be reached about is not a
+listing. The contact block in `custom.js` says it plainly: *"the number is the
+product: the student rings from where he is sitting instead of walking the
+lanes."* A room with no number is a pin a student walks to and finds nothing.
+
+The argument AGAINST: it is one more compulsory box on a form, on a site whose
+hard problem is persuading anyone to post a room at all. Friction costs supply,
+and supply is the thing in short supply.
+
+What is enforced today: **only Room Type**. Everything else is optional,
+including the number.
+
+**If you make it compulsory again, it takes two changes and neither works
+alone.**
 
 `optional: true` was removed — but that key **never enforced anything**. The
 only thing it does in this entire app is print a small "(optional)" beside the
@@ -34,7 +48,7 @@ label, in `sa_web/jstemplates/form-field-label.html`. Removing it changes the
 label and nothing else. Anyone who removes it and stops there has changed the
 wording and left the field optional.
 
-`required` was added to the field's `attrs`. `attrs` is the only part of a
+`required` goes in the field's `attrs` (it is not there now). `attrs` is the only part of a
 field config that reaches the `<input>` as real HTML, so it is the part that
 actually stops an empty submit. It works because `place-form-view.js` binds
 `'submit form'`, and the browser runs its own validation before that event

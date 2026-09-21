@@ -509,10 +509,11 @@
     if (!validity) { return ''; }
 
     if (name === 'contact_number') {
-      if (validity.valueMissing) {
-        return 'Add a phone number. Students ring this number - without it ' +
-          'nobody can reach you about the room.';
-      }
+      // No valueMissing branch: the number went back to optional on
+      // 2026-09-21, so an empty one is a valid answer and the browser never
+      // reports it missing. If it is ever made compulsory again, add the
+      // branch back here AND the `required` attr in config.yml - neither
+      // works alone, and `optional: true` enforces nothing either way.
       if (validity.patternMismatch || validity.tooShort) {
         return 'That does not look like a Nepali mobile number. It should be ' +
           '10 digits starting 98, 97 or 96.';
