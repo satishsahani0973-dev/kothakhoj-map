@@ -492,6 +492,33 @@ var Shareabouts = Shareabouts || {};
 
         self.$panel.removeClass().addClass('place-detail place-detail-' + model.id + ' place-detail-' + model.get('location_type'));
         self.showPanel(placeDetailView.render(isNew).$el, !!responseId);
+
+        // The places list no longer carries contact_number. It is the one
+        // field on a room worth harvesting in bulk, so the API serves it one
+        // room at a time - see PlaceListSerializer in the api repo for why.
+        // Ask for this room's own record so the panel can show the number,
+        // and so the Directions card can build its WhatsApp link from it.
+        //
+        // This runs AFTER showPanel, deliberately. The panel is already on
+        // screen and the number fills itself in a moment later; holding the
+        // whole panel back for a round trip would be the wrong trade on a
+        // Nepali mobile connection. PlaceDetailView re-renders on 'change'
+        // (see its initialize), so nothing here has to redraw anything.
+        //
+        // include_submissions has to match what the list asked for. A fetch
+        // REPLACES the model's attributes, so leaving it out would swap the
+        // loaded comments for summaries and empty the comment list.
+        //
+        // The flag is set on success only, so a request that fails is tried
+        // again next time the room is opened rather than leaving it stuck
+        // with no number.
+        if (model.id && !model.kkDetailsFetched) {
+          model.fetch({
+            data: { include_submissions: includeSubmissions },
+            success: function() { model.kkDetailsFetched = true; }
+          });
+        }
+
         self.hideNewPin();
         self.destroyNewModels();
         self.hideCenterPoint();
