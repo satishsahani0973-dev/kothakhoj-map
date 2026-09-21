@@ -1051,6 +1051,35 @@ check('month mode with NO month chosen does not offer it either', () => {
 check('offered but unticked stores nothing', () =>
   assert.strictEqual(KK.freeDate.hideDecision('date', true, false).value, ''));
 
+console.log('hiddenNotice');
+const HN_FUTURE = Date.now() + 40 * 86400000;
+const HN_PAST = Date.now() - 86400000;
+check('a visible room says nothing', () =>
+  assert.strictEqual(KK.hiddenNotice(true, 'yes', String(HN_FUTURE)), ''));
+check('undefined visible is treated as visible, not hidden', () =>
+  assert.strictEqual(KK.hiddenNotice(undefined, '', ''), ''));
+check('their own hidden room names the month it comes back', () => {
+  const t = KK.hiddenNotice(false, 'yes', String(HN_FUTURE));
+  assert.ok(t.includes('Only you can see'), t);
+  assert.ok(/appears on the map on \w+ \d+/.test(t), t);
+});
+check('a moderation hide does NOT promise a date', () => {
+  // No marker: somebody else took this room off the map and no sweep will
+  // release it. Promising a date here would be a lie to the poster.
+  const t = KK.hiddenNotice(false, '', String(HN_FUTURE));
+  assert.ok(t.includes('not on the map'), t);
+  assert.ok(!t.includes('appears on the map on'), t);
+});
+check('a matured marker does not name a date that has already passed', () => {
+  const t = KK.hiddenNotice(false, 'yes', String(HN_PAST));
+  assert.ok(t.includes('shortly'), t);
+  assert.ok(!/appears on the map on/.test(t), t);
+});
+check('a marker with no date still says something true', () => {
+  const t = KK.hiddenNotice(false, 'yes', '');
+  assert.ok(t.includes('Only you can see'), t);
+});
+
 console.log('hide-until-free markup');
 check('the form carries a hide_until_free input, empty by default', () => {
   assert.ok(/name="hide_until_free"\s+value=""/.test(formHtml),
@@ -1060,6 +1089,16 @@ check('the tick box ships hidden, so it cannot be used without a month', () => {
   const box = formHtml.match(/<label[^>]*free-hide-until[^>]*>/);
   assert.ok(box, 'no tick box in the form');
   assert.ok(box[0].includes('is-hidden'), 'the box is visible before a month is picked');
+});
+check('the detail template renders the hidden notice', () => {
+  const d = fs.readFileSync(path.join(FLAVOR, 'jstemplates/place-detail.html'), 'utf8');
+  assert.ok(/hidden_notice visible hide_until_free free_ts/.test(d),
+    'the poster is never told their room is off the map');
+});
+check('the notice sits ABOVE the availability badge', () => {
+  const d = fs.readFileSync(path.join(FLAVOR, 'jstemplates/place-detail.html'), 'utf8');
+  assert.ok(d.indexOf('hidden_notice') < d.indexOf('place-availability'),
+    '"this is not on the map" matters more than when it frees');
 });
 check('the checkbox is not pre-checked', () =>
   assert.ok(!/free-hide-check[^>]*checked/.test(formHtml), 'ships pre-ticked'));

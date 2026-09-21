@@ -496,6 +496,33 @@
     return { state: 'later', label: KK.bsLabel(ts) };
   };
 
+  // ---- "only you can see this" ------------------------------------------
+  // A hidden room is still listed for the person who posted it (the API
+  // returns their own invisible places). Without this line they open their
+  // room, see it looking completely normal, and have no idea it is off the
+  // map - so they either worry it is broken, or assume it is live and wonder
+  // why nobody calls.
+  //
+  // Two different hidden states, and they must not read the same:
+  //   they hid it themselves, until a date -> say WHEN it comes back
+  //   somebody else hid it (moderation)    -> do NOT promise a date,
+  //                                           because none is coming
+  KK.hiddenNotice = function(visible, hideUntilFree, freeTs, now) {
+    if (visible !== false) { return ''; }
+    if (hideUntilFree) {
+      var ts = Number(freeTs);
+      if (ts && !isNaN(ts) && ts > (now || Date.now())) {
+        return 'Only you can see this room. It appears on the map on ' +
+          KK.bsLabel(ts) + '.';
+      }
+      // Marker set but the date has gone, or was never usable. The nightly
+      // sweep releases these; say something true meanwhile rather than
+      // naming a date that has already passed.
+      return 'Only you can see this room. It will appear on the map shortly.';
+    }
+    return 'Only you can see this room. It is not on the map.';
+  };
+
   // A legacy place with no answer at all tells us nothing, so it fails
   // toward "go ask" rather than toward "walk across town".
   KK.availability.LEGACY_EMPTY = 'ask';
@@ -668,6 +695,17 @@
       var p = typeof path === 'string' ? path : '';
       var h = typeof house === 'string' ? house : '';
       return new window.Handlebars.SafeString(KK.address.lineHtml(p, h));
+    });
+    window.Handlebars.registerHelper('hidden_notice', function(visible, hideUntilFree, freeTs) {
+      // Handlebars appends its options object as the last argument, so any
+      // value arriving as an object is a MISSING argument, not a value.
+      var v = (typeof visible === 'boolean') ? visible : true;
+      var h = (typeof hideUntilFree === 'string') ? hideUntilFree : '';
+      var t = (typeof freeTs === 'string' || typeof freeTs === 'number') ? freeTs : '';
+      var text = KK.hiddenNotice(v, h, t);
+      if (!text) { return ''; }
+      return new window.Handlebars.SafeString(
+        '<p class="place-hidden-notice">' + KK.esc(text) + '</p>');
     });
     window.Handlebars.registerHelper('report_block', function(id, name) {
       var n = typeof name === 'string' ? name : '';

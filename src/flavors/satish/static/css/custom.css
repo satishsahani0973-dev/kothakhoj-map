@@ -657,6 +657,19 @@ body.signin-gate #list-container {
    that would drop it from the tab order and from screen readers). */
 /* The lane and house number, printed under the landmark. Quiet on purpose:
    it is the second half of the title, not a field of its own. */
+/* "Only you can see this room." Deliberately loud - a poster who misses this
+   thinks their room is live and wonders why the phone never rings. Same
+   yellow as a warning rather than the quiet grey of the address line. */
+.place-hidden-notice {
+  margin: 0 0 0.5em;
+  padding: 0.5em 0.7em;
+  background: #fff4d6;
+  border-left: 4px solid #e8a33d;
+  color: #6b4b12;
+  font-size: 0.95em;
+  border-radius: 3px;
+}
+
 .place-address-line {
   margin: 0 0 0.35em;
   color: #666;

@@ -23,6 +23,11 @@
                 page is a prediction; this one is a fact, and near AMDA
                 where rooms go in days it is what actually decides whether
                 the walk is worth it. --}}
+          {{!-- Only ever rendered for the poster, because nobody else is
+                served a hidden room in the first place. It sits above the
+                availability badge on purpose: "this is not on the map" is
+                more important than when it frees. --}}
+          {{ hidden_notice visible hide_until_free free_ts }}
           <p class="place-availability">{{ free_badge free_ts free_state }} <span class="place-type-chip">{{ place_type_label location_type }}</span> <span class="place-posted">{{#_}}Posted{{/_}} {{ fromnow created_datetime }}</span></p>
           <a href="#" class="btn btn-small share-place"
              data-place-id="{{ id }}"
