@@ -1095,6 +1095,52 @@ body.kk-scanning #content {
    gets out of the way as soon as Directions is tapped. */
 body.kk-directions .kk-legend { display: none; }
 
+/* A shared link to a room that has gone. Sized to be readable at a glance on
+   a phone, because it is almost always opened from a WhatsApp group rather
+   than from the map. The Nepali line leads; the English sits under it. */
+.kk-dead-link {
+  padding: 28px 20px 32px;
+  text-align: center;
+}
+.kk-dead-link-np {
+  margin: 0 0 10px;
+  font-size: 22px;
+  line-height: 1.5;
+  color: #333;
+}
+.kk-dead-link-en {
+  margin: 0 0 22px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #666;
+}
+/* Taken is the ordinary, expected ending for a room - it is good news for the
+   landlord. Grey, not red: nothing has gone wrong. A connection failure keeps
+   the plain style because there the visitor SHOULD try again. */
+.kk-dead-link-taken .kk-dead-link-np { color: #444; }
+/* Two classes, not one: app.css sets `.btn { text-transform: uppercase }` at
+   the same specificity, so a single-class rule here is decided by source
+   order rather than intent - and it lost. Measured in the browser, not
+   guessed: with the base rule winning, the label rendered as
+   "अरू कोठा हेर्नुहोस् / SEE OTHER ROOMS", half shouting, and wrapped onto
+   three lines at 375px. Devanagari has no case, so uppercase only ever
+   damages the English half of a bilingual label.
+
+   min-height carries the button past the 44px tap target; at the inherited
+   padding it measured 39px, which is small for a thumb and this is the only
+   thing to press on the screen. */
+.kk-dead-link .kk-dead-link-browse {
+  display: inline-block;
+  padding: 14px 22px;
+  min-height: 48px;
+  box-sizing: border-box;
+  font-size: 16px;
+  line-height: 1.4;
+  border-radius: 8px;
+  text-decoration: none;
+  text-transform: none;
+}
+
 /* Save failed on the add-a-room form — loud enough not to be missed, since
    the alternative was the button appearing to do nothing at all. */
 .kk-save-error {

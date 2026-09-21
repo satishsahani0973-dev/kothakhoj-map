@@ -557,8 +557,30 @@ var Shareabouts = Shareabouts || {};
         model.trigger('focus');
       };
 
-      onPlaceNotFound = function() {
-        self.options.router.navigate('/');
+      // A shared room link that no longer resolves. This used to navigate
+      // straight to '/', which drops the visitor on the map with no idea why
+      // - indistinguishable from a broken link or a broken site. Show them
+      // what happened instead, and leave the map running behind the panel so
+      // carrying on browsing is one tap.
+      //
+      // Backbone hands the error callback (model, response, options), and the
+      // status decides the wording: only a 404 means the room is gone. See
+      // KK.deadLinkNotice for why anything else must not claim it was taken.
+      //
+      // If custom.js did not load, fall back to the old navigate so a dead
+      // link is never a dead end.
+      onPlaceNotFound = function(model, response) {
+        var KK = window.KothaKhoj;
+        if (!KK || typeof KK.deadLinkHtml !== 'function') {
+          self.options.router.navigate('/');
+          return;
+        }
+        self.$panel.removeClass().addClass('kk-dead-link-panel');
+        self.showPanel(KK.deadLinkHtml(response && response.status));
+        self.hideNewPin();
+        self.destroyNewModels();
+        self.hideCenterPoint();
+        self.setBodyClass('content-visible');
       };
 
       // If we get a PlaceModel then show it immediately.

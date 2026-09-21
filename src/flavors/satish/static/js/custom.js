@@ -556,6 +556,52 @@
     return 'Only you can see this room. It is not on the map.';
   };
 
+  // ---- Dead shared links --------------------------------------------------
+  // A room link gets pasted into a WhatsApp group and lives there for weeks.
+  // By the time someone taps it the room is often gone, and until now the app
+  // answered by silently bouncing them to the map - which reads as "your link
+  // is broken" or "this site does not work", not as "that room went".
+  //
+  // The status code is the whole decision, because Backbone's error callback
+  // fires for everything: 404, 500, a timeout, a phone with no signal. Only a
+  // 404 means the room is not there. Anything else means WE could not answer,
+  // and saying "someone took it" then is a lie that costs a real listing a
+  // real viewer. Unknown or missing status falls to the honest branch, not the
+  // confident one.
+  //
+  // A room hidden by hide-until-free is a 404 to everyone but its poster, so
+  // it lands here too, deliberately. We cannot tell hidden from deleted from
+  // out here - and we should not, because saying "this one is only hidden"
+  // would undo the privacy the poster chose. "Someone is in it" is true of
+  // both anyway.
+  KK.deadLinkNotice = function(status) {
+    if (Number(status) === 404) {
+      return {
+        taken: true,
+        np: 'यो कोठा कसैले लिइसक्यो',
+        en: 'This room is already taken.'
+      };
+    }
+    return {
+      taken: false,
+      np: 'कोठा खोल्न सकिएन',
+      en: 'Could not open this room. Check your connection and try again.'
+    };
+  };
+
+  // The panel itself. Nepali first - the people tapping these links are
+  // students in Nepal - with the English under it, the way the business page
+  // already does it.
+  KK.deadLinkHtml = function(status) {
+    var n = KK.deadLinkNotice(status);
+    return '<div class="kk-dead-link' + (n.taken ? ' kk-dead-link-taken' : '') + '">' +
+      '<h2 class="kk-dead-link-np">' + KK.esc(n.np) + '</h2>' +
+      '<p class="kk-dead-link-en">' + KK.esc(n.en) + '</p>' +
+      '<a href="/" class="btn btn-primary kk-dead-link-browse">' +
+      KK.esc('अरू कोठा हेर्नुहोस् / See other rooms') + '</a>' +
+      '</div>';
+  };
+
   // A legacy place with no answer at all tells us nothing, so it fails
   // toward "go ask" rather than toward "walk across town".
   KK.availability.LEGACY_EMPTY = 'ask';

@@ -1481,5 +1481,67 @@ check('the same place is not recorded twice', () => {
   assert.strictEqual(u.store['myPlaceIds'], '[7]');
 });
 
+// ---- dead shared links --------------------------------------------------
+// A room link sits in a WhatsApp group for weeks. The room goes. Someone
+// taps the link. The only thing that decides the wording is the status code,
+// and getting that wrong in the confident direction tells a visitor a live
+// room is gone.
+console.log('KK.deadLinkNotice');
+
+check('a 404 is the room being gone, and says so', () => {
+  const n = KK.deadLinkNotice(404);
+  assert.strictEqual(n.taken, true);
+  assert.ok(n.np.indexOf('कसैले') !== -1, 'the Nepali line names who took it');
+  assert.ok(/already taken/i.test(n.en), 'en: ' + n.en);
+});
+
+check('a server error does NOT claim the room was taken', () => {
+  const n = KK.deadLinkNotice(500);
+  assert.strictEqual(n.taken, false);
+  assert.ok(!/taken/i.test(n.en), 'a 500 means WE failed, not that the room went: ' + n.en);
+});
+
+check('a phone with no signal does NOT claim the room was taken', () => {
+  // jQuery reports status 0 when the request never reached anywhere.
+  const n = KK.deadLinkNotice(0);
+  assert.strictEqual(n.taken, false);
+  assert.ok(/connection/i.test(n.en), 'en: ' + n.en);
+});
+
+check('an unknown status falls to the honest branch, not the confident one', () => {
+  [undefined, null, '', NaN, 'weird'].forEach(bad => {
+    assert.strictEqual(KK.deadLinkNotice(bad).taken, false,
+      'status ' + String(bad) + ' must not claim the room was taken');
+  });
+});
+
+check('a string 404 still counts as gone', () => {
+  // Some transports hand the status back as text.
+  assert.strictEqual(KK.deadLinkNotice('404').taken, true);
+});
+
+console.log('KK.deadLinkHtml');
+
+check('the taken panel carries both languages and a way onward', () => {
+  const html = KK.deadLinkHtml(404);
+  assert.ok(html.indexOf('कसैले') !== -1, 'Nepali line present');
+  assert.ok(/already taken/i.test(html), 'English line present');
+  assert.ok(html.indexOf('href="/"') !== -1, 'a dead link must never be a dead end');
+  assert.ok(html.indexOf('kk-dead-link-taken') !== -1, 'taken variant class');
+});
+
+check('the connection panel is not styled as taken', () => {
+  const html = KK.deadLinkHtml(0);
+  assert.ok(html.indexOf('kk-dead-link-taken') === -1);
+  assert.ok(html.indexOf('href="/"') !== -1, 'still offers other rooms');
+});
+
+check('the panel escapes what it prints', () => {
+  // The strings are ours today, but this is the function that would render a
+  // room name or a status if either is ever added to the message.
+  const html = KK.deadLinkHtml(404);
+  assert.ok(html.indexOf('<script') === -1);
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);
