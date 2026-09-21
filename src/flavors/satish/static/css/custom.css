@@ -1069,13 +1069,26 @@ body.kk-scanning #content {
 /* Laptop browse screen: default.css floats that same button into this very
    corner from its own min-width:60em block (left 1.5em, bottom 2em), so the
    legend has to clear it at this width too - the phone lift above is scoped
-   to max-width and never reaches here. Measured on the live site at 1440px:
-   the button's top edge sits 109px off the bottom, the legend's was 34px.
+   to max-width and never reaches here.
 
-   rem, not em: .kk-legend sets font-size 12px, so 8.5em here would be 102px
-   and the card would still land on top of the button. */
+   Two values, because the button changes height. default.css widens the
+   content pane at 80em, which leaves the map pane wider, which is enough for
+   "Welcome to KothaKhoj" to stop wrapping. Measured on the live site:
+
+       1279px   button 354 wide, two lines, 100 tall, top edge at 140
+       1280px   button 394 wide, one line,   69 tall, top edge at 109
+
+   so each value sits ~20px above the button it has to clear. A single value
+   tuned to 1440px leaves a 20px overlap at 1024px - that is the bug this
+   pair replaces, found by checking widths other than the one I was on.
+
+   rem, not em: .kk-legend sets font-size 12px, so an em value here would be
+   scaled by 12 rather than 16 and land short. */
 @media only screen and (min-width: 60em) {
-  .kk-legend { bottom: 7.5rem; }
+  .kk-legend { bottom: 10rem; }
+}
+@media only screen and (min-width: 80em) {
+  .kk-legend { bottom: 8rem; }
 }
 /* The route card owns the bottom of the screen for the whole directions
    flow — locating, route preview and walking alike — so the pin legend
