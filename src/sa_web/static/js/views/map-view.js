@@ -3,6 +3,7 @@
 var Shareabouts = Shareabouts || {};
 
 (function(S, $, console){
+
   S.MapView = Backbone.View.extend({
     events: {
       'click .locate-me': 'onClickGeolocate'
@@ -363,9 +364,17 @@ var Shareabouts = Shareabouts || {};
             }
           });
           if (typeof Fuse === 'undefined') {
+            var staticUrl = (S.bootstrapped && S.bootstrapped.staticUrl) || '/static/';
             var script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.6.2/fuse.min.js';
+            script.src = staticUrl + 'libs/fuse/fuse.min.js';
             script.onload = loadFuse;
+            script.onerror = function() {
+              // Without Fuse, localSearch bails at the localEntries guard, so
+              // the college half of the box goes dead while the address half
+              // keeps working. This only reaches the console - the student
+              // still just sees no colleges. Worth surfacing properly one day.
+              console.warn('Fuse failed to load; college search is unavailable.');
+            };
             document.head.appendChild(script);
           } else {
             loadFuse();

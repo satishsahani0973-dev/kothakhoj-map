@@ -1,4 +1,22 @@
 
+/* =Webfont
+-------------------------------------------------------------- */
+
+/* Dancing Script 700, the wordmark face. Served from our own origin so the
+   header does not wait on fonts.googleapis + fonts.gstatic before it can
+   paint. Only the latin subset is here: the wordmark is "KothaKhoj", plain
+   ASCII and never translated, so latin-ext and vietnamese would never be
+   fetched. Google's own file, unmodified — see fonts/OFL.txt.
+   ../fonts/ resolves from both css/default.css and dist/app.css, since both
+   sit one level under the static root. */
+@font-face {
+  font-family: 'Dancing Script';
+  font-style: normal;
+  font-weight: 700;
+  src: url(../fonts/dancing-script-700-latin.woff2) format('woff2');
+  font-display: swap;
+}
+
 /* =Base Styles
 -------------------------------------------------------------- */
 
