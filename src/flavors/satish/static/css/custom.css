@@ -1511,3 +1511,122 @@ img.leaflet-marker-icon {
   font-size: 13px;
   color: #66635f;
 }
+
+/* ==========================================================================
+   ROOM PHOTOS — one to a screen, swipe for the rest
+
+   Before this, every photo was a full-width block stacked vertically, so a
+   room with four photos pushed the rent, the phone number and Directions
+   right off the bottom of a phone. The page read as a photo album that
+   happened to have contact details somewhere underneath.
+
+   The strip is pure CSS. scroll-snap does the swiping, so it works with no
+   JavaScript at all; custom.js only adds the counter and the dots, and only
+   when there is more than one photo. If that never runs you still get a
+   working, swipeable strip - which is the right way round. */
+
+.kk-photos {
+  position: relative;
+  margin: 0 0 12px;
+}
+
+.kk-photos-strip {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;            /* firefox */
+  scroll-behavior: smooth;
+  border-radius: 10px;
+}
+.kk-photos-strip::-webkit-scrollbar { display: none; }
+.kk-photos-strip:focus-visible { outline: 2px solid #16181d; outline-offset: 2px; }
+
+.kk-photo {
+  /* 92%, not 100%. The missing 8% is the next photo peeking in from the
+     right, which is the whole affordance: it shows there is more instead of
+     announcing it. A single photo gets 100% below, because there is nothing
+     to peek at and a gap would just look like a mistake. */
+  flex: 0 0 92%;
+  scroll-snap-align: center;
+  margin: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #efede7;
+}
+.kk-photos[data-photo-count="1"] .kk-photo { flex-basis: 100%; }
+
+.kk-photo img {
+  display: block;
+  width: 100%;
+  /* Fixed shape, so four photos of four different sizes do not make the
+     strip jump in height as you swipe between them. */
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  height: auto;
+}
+/* Older phones that do not know aspect-ratio get a sane cap instead of a
+   full-height photo. */
+@supports not (aspect-ratio: 4 / 3) {
+  .kk-photo img { max-height: 62vw; object-fit: cover; }
+}
+
+/* "2 / 4", sat on the photo itself. Tells you where you are AND how many
+   there are - a dot row alone answers only the first question once the
+   count goes past four or five. */
+.kk-photos-count {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(26, 25, 23, 0.72);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  pointer-events: none;
+}
+
+.kk-photos-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.kk-photos-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d0cdc6;
+  padding: 0;
+  border: 0;
+  /* A 7px target is unhittable. The dot stays 7px but the button around it
+     is 24px, which is the smallest target WCAG accepts. */
+  box-sizing: content-box;
+  border: 8px solid transparent;
+  background-clip: content-box;
+  cursor: pointer;
+}
+.kk-photos-dot.is-active { background: #1a1917; }
+
+/* Room LIST rows keep the old compact thumbnail.
+
+   PlaceListItemView renders rows with the same '#place-detail' template, so
+   every row carries a full copy of this strip. default.css:1191 used to keep
+   list photos to a floated 9em thumbnail via .place-item-attachment, and
+   renaming the classes orphaned that rule - leaving each row with a
+   full-width swipeable strip and a list you could no longer skim.
+
+   One photo, small, floated, no counter and no dots: a list row is a glance,
+   not a gallery. The room's own page is where the strip belongs. */
+.place-list .kk-photos {
+  float: left;
+  max-width: 9em;
+  margin: 0 1em 0.75em 0;
+}
+.place-list .kk-photos-strip { overflow: hidden; }
+.place-list .kk-photo { flex-basis: 100%; }
+.place-list .kk-photos-count,
+.place-list .kk-photos-dots { display: none; }

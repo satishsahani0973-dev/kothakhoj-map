@@ -74,23 +74,41 @@
         </header>
 
         <section class="place-items">
-          {{# attachments }}
-          <div class="place-item place-item-attachment place-attachment-{{ name }}">
-            {{!-- width/height are not decoration. The api records the real
-                  stored size of every attachment, and handing those to the
-                  browser lets it reserve the right box before the photo
-                  arrives, so the text below does not jump down the page when
-                  it does. They set the shape only: the img rule in
-                  default.css is max-width 100% / height auto, so the picture
-                  still scales to the panel.
-                  lazy means a second or third photo further down the panel
-                  waits until it is scrolled to, instead of competing with the
-                  one the visitor is actually looking at. --}}
-            <img src="{{ file }}" class="place-value place-value-{{ name }}" alt="{{ name }}"
-                 {{#if width}}width="{{ width }}" height="{{ height }}"{{/if}}
-                 loading="lazy" decoding="async">
+          {{!-- Photos are a horizontal strip, one to a screen, not a
+                vertical stack. A stack pushed the phone number, the rent and
+                the Directions button below three or four full-width photos,
+                so the things a student came for were off the bottom of a
+                phone and the page felt like a photo album with contact
+                details buried in it.
+
+                scroll-snap does the whole job in CSS: no library, no JS
+                needed to swipe, and it keeps working if the enhancement
+                below never runs. The strip is focusable and arrow-key
+                scrollable, which is what keyboard and screen-reader users
+                get instead of a swipe.
+
+                The next photo PEEKS in from the right by design - that sliver
+                is a stronger "there is more" signal than any arrow icon,
+                because it shows what you would get rather than telling you.
+                The counter and dots are added by custom.js and only when
+                there is more than one photo. --}}
+          {{#if attachments.length}}
+          <div class="kk-photos" data-photo-count="{{ attachments.length }}">
+            <div class="kk-photos-strip" tabindex="0" role="group" aria-label="{{#_}}Room photos{{/_}}">
+              {{# attachments }}
+              <figure class="kk-photo">
+                {{!-- width/height are not decoration. The api records the real
+                      stored size of every attachment, and handing those to the
+                      browser lets it reserve the right box before the photo
+                      arrives, so nothing jumps when it lands. --}}
+                <img src="{{ file }}" alt="{{#_}}Photo of this room{{/_}}"
+                     {{#if width}}width="{{ width }}" height="{{ height }}"{{/if}}
+                     loading="lazy" decoding="async">
+              </figure>
+              {{/ attachments }}
+            </div>
           </div>
-          {{/ attachments }}
+          {{/if}}
           {{!-- These names are EXCLUSIONS, not inclusions: each_place_item walks
                 every field in config and renders the ones NOT named here, so a
                 new config field prints itself as a generic label/value row

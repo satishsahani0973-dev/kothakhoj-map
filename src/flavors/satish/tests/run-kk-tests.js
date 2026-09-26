@@ -334,6 +334,62 @@ check('accuracy <= 50 m -> good, else weak', () => {
   assert.strictEqual(KK.geo.quality(undefined), 'weak');
 });
 
+// ---- room photos ----
+console.log('KK.photos');
+
+check('the showing photo is worked out from the scroll position', () => {
+  // 340px slides: 0 -> first, 340 -> second, and a half-swipe rounds to the
+  // one that is mostly on screen rather than jumping ahead.
+  assert.strictEqual(KK.photos.indexFor(0, 340, 4), 0);
+  assert.strictEqual(KK.photos.indexFor(340, 340, 4), 1);
+  assert.strictEqual(KK.photos.indexFor(180, 340, 4), 1);
+  assert.strictEqual(KK.photos.indexFor(160, 340, 4), 0);
+});
+
+check('it can never point past the last photo', () => {
+  // iOS rubber-banding scrolls PAST the end, which would otherwise index a
+  // dot that does not exist and throw inside the scroll handler.
+  assert.strictEqual(KK.photos.indexFor(99999, 340, 4), 3);
+  assert.strictEqual(KK.photos.indexFor(-50, 340, 4), 0);
+});
+
+check('a zero width cannot divide by zero', () => {
+  // getBoundingClientRect returns 0 while the panel is still hidden, and
+  // that runs before the first paint on a slow phone.
+  assert.strictEqual(KK.photos.indexFor(100, 0, 4), 0);
+  assert.strictEqual(KK.photos.indexFor(100, 340, 0), 0);
+});
+
+check('photos are a snapping strip, not a vertical stack', () => {
+  const css = fs.readFileSync(path.join(FLAVOR, 'static/css/custom.css'), 'utf8');
+  assert.ok(/\.kk-photos-strip\s*\{[^}]*scroll-snap-type:\s*x mandatory/.test(css),
+    'the swipe itself must be CSS, so it works without JS');
+  assert.ok(/\.kk-photo\s*\{[^}]*flex:\s*0 0 92%/.test(css),
+    'the 8% is the next photo peeking - the affordance IS the sliver');
+  assert.ok(/\[data-photo-count="1"\][^{]*\{[^}]*flex-basis:\s*100%/.test(css),
+    'one photo gets the full width, with nothing to peek at');
+});
+
+check('the template renders the strip and counts the photos', () => {
+  const tpl = fs.readFileSync(
+    path.join(FLAVOR, 'jstemplates/place-detail.html'), 'utf8');
+  assert.ok(/kk-photos-strip/.test(tpl), 'strip rendered');
+  assert.ok(/data-photo-count="\{\{ attachments\.length \}\}"/.test(tpl),
+    'the count drives the single-photo case in CSS');
+  assert.ok(/\{\{#if attachments\.length\}\}/.test(tpl),
+    'a room with no photos must render no strip at all');
+});
+
+check('photos come before the number and the directions button', () => {
+  // If photos ever move below them, a four-photo room pushes the two things
+  // a student came for off the bottom of a phone - which is the whole
+  // reason this stopped being a vertical stack.
+  const tpl = fs.readFileSync(
+    path.join(FLAVOR, 'jstemplates/place-detail.html'), 'utf8');
+  assert.ok(tpl.indexOf('kk-photos') < tpl.indexOf('contact_block'));
+  assert.ok(tpl.indexOf('kk-photos') < tpl.indexOf('place-directions-bar'));
+});
+
 // ---- rent ----
 console.log('KK.rent');
 

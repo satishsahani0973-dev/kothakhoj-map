@@ -536,6 +536,110 @@
     }
   };
 
+  // ---- Room photos --------------------------------------------------------
+  // The swiping itself is CSS scroll-snap and needs nothing from here. This
+  // only adds the counter and the dots, and only when there is more than one
+  // photo - a "1 / 1" badge and a single dot are noise that tell a student
+  // nothing.
+  //
+  // Everything below is an ENHANCEMENT. If it throws, never runs, or the
+  // browser is too old, the strip still scrolls and every photo is still
+  // reachable, which is why the markup carries no dots of its own.
+  KK.photos = {
+    // Which photo is showing, from a scroll position. Uses the real measured
+    // width of the first slide rather than a constant, because the slide is
+    // sized in per cent and the panel width changes with the phone.
+    indexFor: function(scrollLeft, slideWidth, count) {
+      if (!slideWidth || slideWidth <= 0 || !count) { return 0; }
+      var i = Math.round(scrollLeft / slideWidth);
+      return Math.max(0, Math.min(count - 1, i));
+    },
+
+    enhance: function(root) {
+      var $root = $(root);
+      if (!$root.length || $root.data('kkPhotosReady')) { return; }
+      var strip = $root.find('.kk-photos-strip')[0];
+      var slides = $root.find('.kk-photo');
+      var count = slides.length;
+      if (!strip || count < 2) { return; }
+      $root.data('kkPhotosReady', true);
+
+      var $count = $('<div class="kk-photos-count" aria-hidden="true"></div>')
+        .text('1 / ' + count).appendTo($root);
+
+      var $dots = $('<div class="kk-photos-dots"></div>');
+      for (var i = 0; i < count; i++) {
+        $('<button type="button" class="kk-photos-dot"></button>')
+          .attr('aria-label', 'Photo ' + (i + 1) + ' of ' + count)
+          .attr('data-index', i)
+          .appendTo($dots);
+      }
+      $dots.appendTo($root);
+      $dots.find('.kk-photos-dot').eq(0).addClass('is-active');
+
+      function slideWidth() {
+        var r = slides[0].getBoundingClientRect();
+        // The gap counts: without it the computed index drifts by a whole
+        // photo somewhere around the fifth one.
+        var gap = parseFloat($(strip).css('column-gap') || $(strip).css('gap') || 0) || 0;
+        return r.width + gap;
+      }
+
+      function sync() {
+        var i = KK.photos.indexFor(strip.scrollLeft, slideWidth(), count);
+        $count.text((i + 1) + ' / ' + count);
+        $dots.find('.kk-photos-dot').removeClass('is-active').eq(i).addClass('is-active');
+      }
+
+      // rAF-throttled: a swipe fires scroll events far faster than the screen
+      // redraws, and doing this work on every one of them is what makes a
+      // cheap phone feel like it is dragging treacle.
+      var ticking = false;
+      $(strip).on('scroll', function() {
+        if (ticking) { return; }
+        ticking = true;
+        window.requestAnimationFrame(function() { ticking = false; sync(); });
+      });
+
+      $dots.on('click', '.kk-photos-dot', function() {
+        strip.scrollLeft = slideWidth() * (+$(this).attr('data-index') || 0);
+      });
+    }
+  };
+
+  // The detail panel is re-rendered by Marionette on every navigation, so the
+  // enhancement cannot be bound once at startup - it has to run whenever a
+  // panel appears.
+  //
+  // A MutationObserver, NOT a timer. The first version of this polled every
+  // 400ms for the life of the page, which is a selector query and a loop
+  // running for ever on a phone that is mostly showing a static panel - the
+  // same "work on every tick" mistake the college labels were rewritten to
+  // avoid. The observer costs nothing until the DOM actually changes, which
+  // is exactly when there might be a new strip to enhance.
+  //
+  // enhance() is idempotent (it marks the node with .data('kkPhotosReady')),
+  // so being called more than once for the same strip is free.
+  $(function() {
+    var root = document.getElementById('content') || document.body;
+
+    function scan() {
+      $('.kk-photos').each(function() { KK.photos.enhance(this); });
+    }
+
+    if (window.MutationObserver) {
+      // Coalesce a burst of mutations into one pass: rendering a panel fires
+      // many, and enhancing on each would do the same work dozens of times.
+      var queued = false;
+      new window.MutationObserver(function() {
+        if (queued) { return; }
+        queued = true;
+        window.setTimeout(function() { queued = false; scan(); }, 50);
+      }).observe(root, { childList: true, subtree: true });
+    }
+    scan();
+  });
+
   // ---- Rent ---------------------------------------------------------------
   // Everything in a place's data blob is TEXT, so this has to read a string
   // first and a number second, or every real room falls through to null and
