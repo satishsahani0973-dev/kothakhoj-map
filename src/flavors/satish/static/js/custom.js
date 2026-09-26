@@ -469,9 +469,20 @@
   KK.claim = {
     TEXT: {
       start:   'म यो कोठा लिँदैछु · I am taking this room',
+      // The warning comes FIRST, and it is why this second screen exists at
+      // all. A tap here takes somebody ELSE's room off the map, and the only
+      // person who knows whether it has really gone is the owner. A student
+      // tapping on a hunch hides a room that is still free, and the next four
+      // students never see it.
+      //
+      // Both languages, because this is the one line that must not be
+      // misread. The rest of the card can be guessed from context; this
+      // cannot.
+      warn:    'पहिले घरधनीलाई फोन गर्नुहोस् · Call the owner first',
+      warnSub: 'Only tap below if he has told you the room is yours. This takes it off the map for other students.',
       why:     'We will take this room off the map for a few hours and ring the owner to check it has really gone. That way nobody else walks across town for it.',
       phone:   'Your number (optional) — so we can tell you what the owner said',
-      go:      'Yes, take it off the map',
+      go:      'He said it is mine — take it off the map',
       cancel:  'Not yet',
       done:    'Done. This room is off the map while we ring the owner.',
       failed:  'Could not reach KothaKhoj. Check your connection and try again.'
@@ -489,6 +500,8 @@
 
     confirmHtml: function() {
       return '<div class="kk-claim-confirm">' +
+        '<p class="kk-claim-warn">' + KK.esc(KK.claim.TEXT.warn) + '</p>' +
+        '<p class="kk-claim-warn-sub">' + KK.esc(KK.claim.TEXT.warnSub) + '</p>' +
         '<p class="kk-claim-why">' + KK.esc(KK.claim.TEXT.why) + '</p>' +
         '<label class="kk-claim-phone-label" for="kk-claim-phone">' +
           KK.esc(KK.claim.TEXT.phone) + '</label>' +
@@ -535,6 +548,30 @@
       return done.promise();
     }
   };
+
+  // The share button on the "your room is on the map" card. Reuses the same
+  // native share sheet the detail page uses, because on a phone that sheet is
+  // what puts a link into WhatsApp in one tap - which is how a link actually
+  // travels in Nepal.
+  $(document).on('click', '.kk-posted-share', function(e) {
+    e.preventDefault();
+    var id = $(this).data('place-id');
+    var name = $(this).data('place-name') || 'Room for rent';
+    var url = window.location.origin + '/place/' + encodeURIComponent(id);
+    var text = name + ' - KothaKhoj';
+
+    if (navigator.share) {
+      navigator.share({ title: 'KothaKhoj', text: text, url: url }).catch(function() {});
+    } else if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function() {
+        if (window.Shareabouts && window.Shareabouts.Util && window.Shareabouts.Util.toast) {
+          window.Shareabouts.Util.toast('Link copied. Paste it in WhatsApp.');
+        }
+      }, function() { window.prompt('Copy this link:', url); });
+    } else {
+      window.prompt('Copy this link:', url);
+    }
+  });
 
   // ---- Room photos --------------------------------------------------------
   // The swiping itself is CSS scroll-snap and needs nothing from here. This

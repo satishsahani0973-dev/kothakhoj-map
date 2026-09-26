@@ -334,6 +334,60 @@ check('accuracy <= 50 m -> good, else weak', () => {
   assert.strictEqual(KK.geo.quality(undefined), 'weak');
 });
 
+// ---- pin casing + posted confirmation ----
+console.log('pin + posted');
+
+check('room pins carry a casing so they do not sit flat on the map', () => {
+  // Measured: the dot artwork is 17x18 and only 3% white, and the real
+  // Butwal basemap is 24% white road, 22% beige, 10% river, ~9% pale
+  // vegetation. Green on pale green is the same hue; green on white road
+  // measures 1.99:1.
+  const css = fs.readFileSync(path.join(FLAVOR, 'static/css/custom.css'), 'utf8');
+  const rule = css.split('img.leaflet-marker-icon')[1].split('}')[0];
+  const whites = (rule.match(/drop-shadow\(0 0 1px #fff\)/g) || []).length;
+  assert.strictEqual(whites, 2,
+    'two stacked white shadows make a RING; one alone is a blur at 17px');
+  assert.ok(/drop-shadow\(0 1px 2px rgba\(0, 0, 0/.test(rule),
+    'and a dark shadow, which is what separates it from white roads');
+});
+
+check('the casing is scoped to room pins, not the college markers', () => {
+  // 141 college markers are divIcons. A filter on each of those is what
+  // made pinch-zoom crawl once already.
+  const css = fs.readFileSync(path.join(FLAVOR, 'static/css/custom.css'), 'utf8');
+  // Strip the comment first: this rule EXPLAINS why it avoids the college
+  // markers, so a naive search finds the word in its own reasoning.
+  const rule = css.split('img.leaflet-marker-icon')[1].split('}')[0]
+                  .replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(!/college/.test(rule), 'no college selector in the rule itself');
+  assert.strictEqual(css.split('img.leaflet-marker-icon').length - 1, 1,
+    'one rule only - a second would be a silent override');
+});
+
+check('a new room is told it is live, and given a way to share it', () => {
+  // Was the upstream default: "Thank you for your submission!" - English
+  // only, and it answers none of the three questions a landlord has.
+  const raw = fs.readFileSync(
+    path.join(FLAVOR, 'jstemplates/place-form-submission-confirmation.html'), 'utf8');
+  // Drop {{!-- --}} comments: the replacement QUOTES the old boilerplate to
+  // explain why it went, so testing the raw file finds it every time.
+  const tpl = raw.replace(/\{\{!--[\s\S]*?--\}\}/g, '');
+  assert.ok(!/Thank you for your submission/.test(tpl), 'the boilerplate must be gone');
+  assert.ok(/kk-posted-share/.test(tpl), 'a share control');
+  assert.ok(/data-place-id="\{\{ id \}\}"/.test(tpl), 'sharing needs the id');
+  assert.ok(/\{\{#_\}\}/.test(tpl), 'every string must be translatable');
+});
+
+check('the share button has a handler, and a fallback when there is no share sheet', () => {
+  const js = fs.readFileSync(path.join(FLAVOR, 'static/js/custom.js'), 'utf8');
+  // Not split on '});' - the first one is inside .catch(function() {}),
+  // which cut the body off before the fallbacks it is meant to check.
+  const block = js.split("'.kk-posted-share'")[1].slice(0, 1400);
+  assert.ok(/navigator\.share/.test(block), 'native sheet first - one tap into WhatsApp');
+  assert.ok(/clipboard/.test(block), 'copy as the fallback');
+  assert.ok(/window\.prompt/.test(block), 'and a last resort for old browsers');
+});
+
 // ---- room photos ----
 console.log('KK.photos');
 

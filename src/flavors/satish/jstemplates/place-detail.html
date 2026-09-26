@@ -153,6 +153,13 @@
                data-lat="{{geometry.coordinates.[1]}}" data-lng="{{geometry.coordinates.[0]}}"
                href="#">{{#_}}Directions in Google Maps{{/_}}</a>
           </div>
+          {{!-- Below the directions, and that order matters. "I am taking
+                this room" is the last thing a student does, after they have
+                the number and know where it is. Put above, it reads as the
+                way to find out more - and a tap here takes a real room off
+                the map for everyone else. --}}
+          {{ claim_block id visible }}
+
           {{!-- Grievance route required by the e-commerce listing rules, put
                 where a complaint actually starts: on the room itself. --}}
           {{ report_block id name }}

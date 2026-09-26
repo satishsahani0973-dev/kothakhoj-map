@@ -1,0 +1,29 @@
+{{!-- What a landlord sees the moment their room goes up.
+
+      It used to be the upstream default - "Thank you for your submission!"
+      - which is English-only on a site whose posters are Nepali, and which
+      answers none of the three questions somebody actually has when they
+      have just typed their phone number into a public map: is it live, who
+      can see it, and how do I send it to anyone.
+
+      The share button is the point. A room nobody knows about is a room
+      nobody rings, and in Nepal a link travels by WhatsApp. The owner has
+      just proved they have the number; this is the one moment they are
+      most willing to pass it on.
+
+      Nepali first, because the poster is a landlord or a leaving student,
+      not a browser of English websites. --}}
+<div class="place-submission-confirmation kk-posted">
+  <p class="kk-posted-head">
+    <span class="kk-posted-tick" aria-hidden="true">&#10003;</span>
+    {{#_}}Your room is on the map{{/_}}
+  </p>
+  <p class="kk-posted-sub">{{#_}}Students can see it now and call you directly.{{/_}}</p>
+
+  <a class="btn btn-block kk-posted-share"
+     data-place-id="{{ id }}"
+     data-place-name="{{#if name }}{{ name }}{{^}}Room for rent{{/if}}"
+     href="#">{{#_}}Send the link to someone{{/_}}</a>
+
+  <p class="kk-posted-note">{{#_}}Wrong details? Open the room and tap Report, or add it again.{{/_}}</p>
+</div>
