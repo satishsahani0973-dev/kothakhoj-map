@@ -49,6 +49,38 @@
   color: #fff !important;
   font-weight: bold;
 }
+
+/* Make the Directions button read like a button rather than shout like a
+   banner.
+
+   default.css:113 sets text-transform: uppercase on every .btn. On a label
+   this long that produced "DIRECTIONS IN GOOGLE MAPS" - twenty-five capitals
+   spanning the full width of a 320px phone, which is harder to read than the
+   sentence it was written as, not easier. Capitals remove the word shapes a
+   reader actually recognises.
+
+   The height was 42px. Apple asks for 44 and Android for 48; this is the
+   control a student taps last, often one-handed, sometimes walking. 48.
+
+   display:flex centres the label on its own rather than relying on
+   line-height matching the box, which is what made it sit a pixel high
+   before. */
+.place-directions-bar .open-in-gmaps,
+.place-directions-bar .open-in-gmaps:link,
+.place-directions-bar .open-in-gmaps:visited {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 10px 14px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 8px;
+  text-align: center;
+  line-height: 1.25;
+}
 .get-directions:hover,
 .open-in-gmaps:hover {
   background: #157a41 !important;
