@@ -536,6 +536,46 @@
     }
   };
 
+  // ---- Rent ---------------------------------------------------------------
+  // Everything in a place's data blob is TEXT, so this has to read a string
+  // first and a number second, or every real room falls through to null and
+  // the rent never appears.
+  //
+  // Silence on anything unusable is deliberate. Rooms posted before the field
+  // existed carry no rent, and a room that says "Rs NaN" or "Rs undefined"
+  // looks broken in a way that makes a student distrust the whole map. No
+  // line at all just looks like a room whose owner did not say.
+  //
+  // Grouped in threes (3,500 / 12,000). The lakh grouping would only differ
+  // above 99,999, which is not a student room in Butwal.
+  KK.rent = {
+    parse: function(value) {
+      var digits = (typeof value === 'string' && /^\d+$/.test(value))
+        ? parseInt(value, 10)
+        : (typeof value === 'number' && isFinite(value) ? Math.round(value) : null);
+      if (digits === null || digits <= 0) { return null; }
+      return digits;
+    },
+
+    format: function(value) {
+      var n = KK.rent.parse(value);
+      if (n === null) { return null; }
+      return 'Rs ' + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    },
+
+    // The compact form a map pin carries. Same number, no "Rs", because on a
+    // pin every character costs width and there is nothing else it could be.
+    pinLabel: function(value) {
+      var n = KK.rent.parse(value);
+      if (n === null) { return null; }
+      if (n >= 1000) {
+        var k = n / 1000;
+        return (k % 1 === 0 ? k : k.toFixed(1)) + 'k';
+      }
+      return String(n);
+    }
+  };
+
   // ---- Availability badge -------------------------------------------------
   // Pure decision used by the detail page badge (and tests).
   //
@@ -908,6 +948,14 @@
       // `visible` means the argument was not passed - assume on the map.
       var v = (typeof visible === 'boolean') ? visible : true;
       return new window.Handlebars.SafeString(KK.claim.blockHtml(id, v));
+    });
+    window.Handlebars.registerHelper('rent_line', function(rent) {
+      var v = (typeof rent === 'string' || typeof rent === 'number') ? rent : null;
+      var text = KK.rent.format(v);
+      if (!text) { return ''; }
+      return new window.Handlebars.SafeString(
+        '<p class="kk-rent"><span class="kk-rent-amount">' + KK.esc(text) +
+        '</span> <span class="kk-rent-period">per month</span></p>');
     });
     window.Handlebars.registerHelper('report_block', function(id, name) {
       var n = typeof name === 'string' ? name : '';

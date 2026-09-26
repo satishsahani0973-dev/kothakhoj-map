@@ -286,6 +286,48 @@ place:
       name: location_type
       attrs:
         - key: required
+    # Rent, at last. The site has promised it in six places since launch -
+    # overview.html, why.html, business.html, terms.html, the meta
+    # description, and the report line in custom.js that offers "wrong rent"
+    # - while collecting it nowhere. A student read "see the rent before you
+    # visit", opened a room, found no rent, and had to ring the owner to ask
+    # the first question they had. That is the walk this site exists to save.
+    #
+    # It sits directly under Room Type because "what kind of room" and "how
+    # much" are one thought, and both are answered before anybody reaches for
+    # a phone number.
+    #
+    # REQUIRED, and the two keys below are both needed - see the long note on
+    # contact_number. `optional: true` enforces nothing in this app (it only
+    # prints "(optional)" beside the label), so `required` has to live in
+    # attrs, which is the only part of a field that becomes real HTML. And
+    # `pattern` alone never blocks an empty box, because a pattern only
+    # checks a value that is there.
+    #
+    # digits only, 3 to 6 of them. Free-text rent fields collect "negotiable",
+    # "call me" and "5000/- (nego)", none of which can be compared, sorted or
+    # put on a pin. inputmode brings up the number pad rather than a keyboard.
+    #
+    # Rooms posted before today carry no rent and must not be made to look
+    # broken: the detail page prints nothing at all when the value is absent.
+    - prompt: _(Monthly rent (Rs))
+      label: _(Monthly rent (Rs))
+      type: text
+      name: rent
+      attrs:
+        - key: required
+        - key: inputmode
+          value: numeric
+        - key: pattern
+          value: '[0-9]{3,6}'
+        - key: title
+          value: _(Enter the monthly rent in rupees, digits only - for example 3500)
+        - key: placeholder
+          value: _(e.g. 3500)
+        - key: maxlength
+          value: 6
+        - key: size
+          value: 8
     # Compulsory since 2026-09-18. A room with no way to reach anybody is not
     # a listing - as the contact block in custom.js puts it, "the number is the
     # product: the student rings from where he is sitting instead of walking

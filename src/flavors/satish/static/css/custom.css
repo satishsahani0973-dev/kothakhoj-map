@@ -1461,3 +1461,21 @@ body.kk-directions .kk-filter-chip { display: none; }
 img.leaflet-marker-icon {
   object-fit: none;
 }
+
+/* Rent. The first number a student looks for, so it is the largest thing on
+   the page after the room's own name - and it sits above the availability
+   badge rather than in the label/value rows further down, where it would
+   read as one detail among eight. */
+.kk-rent {
+  margin: 6px 0 2px;
+  line-height: 1.2;
+}
+.kk-rent-amount {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a1917;
+}
+.kk-rent-period {
+  font-size: 13px;
+  color: #66635f;
+}

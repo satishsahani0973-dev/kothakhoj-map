@@ -28,6 +28,12 @@
                 availability badge on purpose: "this is not on the map" is
                 more important than when it frees. --}}
           {{ hidden_notice visible hide_until_free free_ts }}
+          {{!-- Rent sits directly under the room's name and above everything
+                else, because it is the question a student asks first and the
+                one this site promised in six places while collecting it
+                nowhere. Prints nothing at all for rooms posted before the
+                field existed - see KK.rent. --}}
+          {{ rent_line rent }}
           <p class="place-availability">{{ free_badge free_ts free_state }} <span class="place-type-chip">{{ place_type_label location_type }}</span> <span class="place-posted">{{#_}}Posted{{/_}} {{ fromnow created_datetime }}</span></p>
           <a href="#" class="btn btn-small share-place"
              data-place-id="{{ id }}"
@@ -85,7 +91,12 @@
                  loading="lazy" decoding="async">
           </div>
           {{/ attachments }}
-          {{#each_place_item "submitter_name" "name" "path" "house_number" "location_type" "stay_duration" "contact_number" "contact_role"}}
+          {{!-- These names are EXCLUSIONS, not inclusions: each_place_item walks
+                every field in config and renders the ones NOT named here, so a
+                new config field prints itself as a generic label/value row
+                unless it is added to this list. rent is named because it is
+                drawn properly above, beside the availability badge. --}}
+          {{#each_place_item "submitter_name" "name" "path" "house_number" "location_type" "stay_duration" "contact_number" "contact_role" "rent"}}
           <div class="place-item place-item-{{ name }}">
             <span class="place-label place-label-{{ name }}">{{ label }}</span>
             <p class="place-value place-value-{{ name }}">{{nlToBr value }}</p>

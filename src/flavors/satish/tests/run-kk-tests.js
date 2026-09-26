@@ -16,6 +16,10 @@ const vm = require('vm');
 const assert = require('assert');
 
 const FLAVOR = path.join(__dirname, '..');
+// Hoisted: checks further up this file read it, and a `const` declared
+// lower down is in the temporal dead zone until then - which throws
+// rather than returning undefined.
+const configText = fs.readFileSync(path.join(FLAVOR, 'config.yml'), 'utf8');
 
 // ---- minimal browser stubs so custom.js can load ----
 const chain = new Proxy(function () {}, {
@@ -330,6 +334,75 @@ check('accuracy <= 50 m -> good, else weak', () => {
   assert.strictEqual(KK.geo.quality(undefined), 'weak');
 });
 
+// ---- rent ----
+console.log('KK.rent');
+
+check('the blob hands it over as a STRING', () => {
+  // Everything in a place's data blob is text. If this only understood
+  // numbers, every real room would fall through to null and the rent would
+  // never once appear.
+  assert.strictEqual(KK.rent.format('3500'), 'Rs 3,500');
+  assert.strictEqual(KK.rent.format(3500), 'Rs 3,500');
+});
+
+check('thousands are grouped so the number can be read at a glance', () => {
+  assert.strictEqual(KK.rent.format('800'), 'Rs 800');
+  assert.strictEqual(KK.rent.format('12000'), 'Rs 12,000');
+});
+
+check('a room with no rent says NOTHING', () => {
+  // Rooms posted before this field existed. "Rs NaN" would make a student
+  // distrust the whole map; no line just reads as an owner who did not say.
+  ['', null, undefined, 'negotiable', 'call me', '3500/-', '0', '-200', {}]
+    .forEach(v => assert.strictEqual(KK.rent.format(v), null, String(v)));
+});
+
+check('the pin label is short, because width is the scarce thing', () => {
+  assert.strictEqual(KK.rent.pinLabel('3500'), '3.5k');
+  assert.strictEqual(KK.rent.pinLabel('12000'), '12k');
+  assert.strictEqual(KK.rent.pinLabel('800'), '800');
+  assert.strictEqual(KK.rent.pinLabel('rubbish'), null);
+});
+
+check('the form asks for it, and actually enforces it', () => {
+  // Two keys, both needed. `optional: true` only prints a label in this app,
+  // and `pattern` alone never blocks an empty box - see the contact_number
+  // note in config.yml.
+  const block = configText.split('name: rent')[0].split('- prompt:').pop() +
+                configText.split('name: rent')[1].split('- prompt:')[0];
+  assert.ok(/key: required/.test(block), 'required must be in attrs');
+  assert.ok(/\[0-9\]\{3,6\}/.test(block), 'digits only, 3-6 of them');
+  assert.ok(/inputmode/.test(block), 'number pad on a phone');
+});
+
+check('rent is asked after room type and before the phone number', () => {
+  assert.ok(configText.indexOf('name: rent') > configText.indexOf('name: location_type'));
+  assert.ok(configText.indexOf('name: rent') < configText.indexOf('name: contact_number'));
+});
+
+check('the room page prints it, above the availability badge', () => {
+  const tpl = fs.readFileSync(
+    path.join(FLAVOR, 'jstemplates/place-detail.html'), 'utf8');
+  assert.ok(/\{\{\s*rent_line\s+rent\s*\}\}/.test(tpl), 'rendered');
+  assert.ok(tpl.indexOf('rent_line') < tpl.indexOf('place-availability'),
+    'rent comes first - it is the question asked first');
+  assert.ok(typeof Handlebars.helpers.rent_line === 'function', 'helper registered');
+});
+
+check('rent is not ALSO printed as a plain detail row', () => {
+  // each_place_item's arguments are EXCLUSIONS, not inclusions - it walks
+  // every field in config and renders the ones NOT named. So a field must be
+  // LISTED to keep it out. Getting this backwards printed a bare "Monthly
+  // rent (Rs)" label above the properly formatted one.
+  const tpl = fs.readFileSync(
+    path.join(FLAVOR, 'jstemplates/place-detail.html'), 'utf8');
+  // Match the TAG, not the first mention - there is prose above it that
+  // explains the exclusion rule and contains the same words.
+  const m = tpl.match(/\{\{#each_place_item([^}]*)\}\}/);
+  assert.ok(m, 'the each_place_item block must exist');
+  const list = m[1];
+  assert.ok(/"rent"/.test(list), 'rent must be EXCLUDED from the generic rows');
+});
 // ---- auto-fit cluster ----
 console.log('fit.cluster');
 check('drops a faraway outlier, keeps the dense cluster', () => {
@@ -481,7 +554,6 @@ check('a quoted field may contain a newline', () => {
 
 // ---- real config.yml marker rules ----
 console.log('config.yml marker conditions (argo substitution + eval)');
-const configText = fs.readFileSync(path.join(FLAVOR, 'config.yml'), 'utf8');
 
 // The three room types must share the single anchored rule list.
 check('double_room and flat alias the anchored rules', () => {
