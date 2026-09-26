@@ -451,6 +451,91 @@
     }
   };
 
+  // ---- "I am taking this room" -------------------------------------------
+  // A student taps this, the room comes off the map for a few hours, and
+  // somebody rings the owner to find out whether it really went. The hold
+  // buys that phone call without four more students ringing the same owner
+  // in the meantime.
+  //
+  // Deliberately TWO taps. The likeliest way this feature goes wrong is not
+  // an attacker - it is a curious student tapping to see what happens and
+  // taking a real room off a map that has two rooms on it. The second tap is
+  // where the consequence is spelled out, and it is also the only place the
+  // phone number is asked for.
+  //
+  // Nothing here decides anything. The server picks the deadline, and the
+  // server decides whether a hold is allowed at all; this code shows what it
+  // answered. See Place.request_claim_hold in the api.
+  KK.claim = {
+    TEXT: {
+      start:   'म यो कोठा लिँदैछु · I am taking this room',
+      why:     'We will take this room off the map for a few hours and ring the owner to check it has really gone. That way nobody else walks across town for it.',
+      phone:   'Your number (optional) — so we can tell you what the owner said',
+      go:      'Yes, take it off the map',
+      cancel:  'Not yet',
+      done:    'Done. This room is off the map while we ring the owner.',
+      failed:  'Could not reach KothaKhoj. Check your connection and try again.'
+    },
+
+    blockHtml: function(id, visible) {
+      // A room already off the map has nothing to hold. Rendering the button
+      // there would offer an action that can only ever be refused.
+      if (visible === false) { return ''; }
+      return '<div class="kk-claim" data-place-id="' + KK.esc(id || '') + '">' +
+        '<button type="button" class="btn btn-block kk-claim-start">' +
+          KK.esc(KK.claim.TEXT.start) + '</button>' +
+        '</div>';
+    },
+
+    confirmHtml: function() {
+      return '<div class="kk-claim-confirm">' +
+        '<p class="kk-claim-why">' + KK.esc(KK.claim.TEXT.why) + '</p>' +
+        '<label class="kk-claim-phone-label" for="kk-claim-phone">' +
+          KK.esc(KK.claim.TEXT.phone) + '</label>' +
+        '<input id="kk-claim-phone" class="kk-claim-phone" type="tel" ' +
+          'inputmode="numeric" autocomplete="tel" maxlength="32" placeholder="98........">' +
+        '<button type="button" class="btn btn-block kk-claim-go">' +
+          KK.esc(KK.claim.TEXT.go) + '</button>' +
+        '<button type="button" class="btn btn-block kk-claim-cancel">' +
+          KK.esc(KK.claim.TEXT.cancel) + '</button>' +
+        '</div>';
+    },
+
+    // Resolves to {granted: bool, message: string}. Never rejects: a student
+    // on a bad connection near AMDA should be told to try again, not left
+    // looking at a button that did nothing.
+    //
+    // Built on an explicit Deferred rather than .then(done, fail), and that
+    // is not style. This site ships jQuery 1.10, where a fail filter passed
+    // to .then returns a promise that is STILL REJECTED - the returned value
+    // is filtered, not converted. (jQuery 3 changed this to match Promises/A+
+    // and would have made the shorter version work.) With .then, every
+    // refusal left the button disabled and showing "...", because the
+    // caller's success handler never ran. A refusal is the common case here:
+    // "someone else is already asking about this room" is a normal answer.
+    post: function(id, phone) {
+      var done = window.jQuery.Deferred();
+      window.jQuery.ajax({
+        url: '/api/places/' + encodeURIComponent(id) + '/claim',
+        type: 'POST',
+        contentType: 'application/json',
+        dataType: 'json',
+        data: JSON.stringify({ phone: phone || '' })
+      }).done(function() {
+        done.resolve({ granted: true, message: KK.claim.TEXT.done });
+      }).fail(function(xhr) {
+        var body = null;
+        try { body = JSON.parse((xhr && xhr.responseText) || ''); }
+        catch (e) { body = null; }
+        done.resolve({
+          granted: false,
+          message: (body && body.message) || KK.claim.TEXT.failed
+        });
+      });
+      return done.promise();
+    }
+  };
+
   // ---- Availability badge -------------------------------------------------
   // Pure decision used by the detail page badge (and tests).
   //
@@ -663,6 +748,38 @@
       digits = digits.replace(/^0+/, '').replace(/^977/, '');
       if (digits.length < 9) { return null; }
       return 'https://wa.me/977' + digits;
+    },
+
+    // Google's travel modes are not our profile names.
+    GMAPS_MODE: { walking: 'walking', cycling: 'bicycling', driving: 'driving' },
+
+    // Hand the walk over to Google Maps.
+    //
+    // Why hand it over at all, when this app already routes: a browser tab
+    // cannot survive a locked screen. A student walking fifteen minutes to a
+    // room WILL lock the phone, take a call, or switch to WhatsApp, and the
+    // moment they do, watchPosition stops and the route is gone - leaving
+    // them in a gali looking at a blank screen. Google Maps keeps running,
+    // keeps talking, and has far better coverage of Butwal's lanes than the
+    // OSM data our Mapbox profile routes on.
+    //
+    // No origin is passed. Maps uses the phone's own location, which is
+    // better than anything we could hand it.
+    //
+    // The mode is picked the same way the in-app route picks it, from the
+    // last GPS fix if we have a fresh one. Hardcoding 'walking' would hand
+    // someone a two-hour walk on the one listing that is across town; with
+    // no fix at all, walking is still the right default, because every room
+    // on this map is in one small town.
+    gmapsLink: function(lat, lng, straightMeters, preferred) {
+      var la = Number(lat), ln = Number(lng);
+      if (!isFinite(la) || !isFinite(ln)) { return null; }
+      var profile = (typeof straightMeters === 'number' && isFinite(straightMeters))
+        ? KK.route.pickProfile(straightMeters, preferred)
+        : 'walking';
+      return 'https://www.google.com/maps/dir/?api=1' +
+             '&destination=' + encodeURIComponent(la + ',' + ln) +
+             '&travelmode=' + (KK.route.GMAPS_MODE[profile] || 'walking');
     }
   };
 
@@ -785,6 +902,12 @@
       if (!text) { return ''; }
       return new window.Handlebars.SafeString(
         '<p class="place-hidden-notice">' + KK.esc(text) + '</p>');
+    });
+    window.Handlebars.registerHelper('claim_block', function(id, visible) {
+      // Handlebars appends its options object last, so a non-boolean
+      // `visible` means the argument was not passed - assume on the map.
+      var v = (typeof visible === 'boolean') ? visible : true;
+      return new window.Handlebars.SafeString(KK.claim.blockHtml(id, v));
     });
     window.Handlebars.registerHelper('report_block', function(id, name) {
       var n = typeof name === 'string' ? name : '';
@@ -1421,18 +1544,22 @@
     }
   });
 
-  // ---- College markers + campus areas ------------------------------------
+  // ---- College markers ----------------------------------------------------
   // Colleges come from the same published Google Sheet the search box uses
   // (columns: name, lat, lng, aliases — edit the sheet, never this file).
-  // Each college gets a small dark cap marker, a name chip from zoom 13,
-  // and a light dashed circle approximating the campus area, so rooms
-  // (green/orange pins) stay the loudest thing on the map.
+  // Each college gets a small dark cap marker and a name chip from zoom 13,
+  // so rooms (green/orange pins) stay the loudest thing on the map.
+  //
+  // Tapping one used to also draw a dashed 300m "campus area" circle. It was
+  // a guess - one radius for a two-building school and for a campus that
+  // spans a highway - drawn in a colour nothing else on this map uses, and
+  // it covered the room pins it was meant to give context to. A tap now just
+  // takes you there.
   // Served by our own Django view, which fetches the sheet once per ten
   // minutes and caches it. Fetching Google straight from the browser cost
   // 3,471ms measured from Butwal, in front of every college pin.
   var COLLEGES_CSV_URL = '/colleges.csv';
   var COLLEGE_LABEL_MIN_ZOOM = 13;
-  var CAMPUS_RADIUS_METERS = 300;
 
   KK.colleges = {
     // CSV text -> rows of fields, honouring the quoting the sheet actually
@@ -1492,23 +1619,7 @@
     var L = window.L;
     var group = L.layerGroup();
 
-    // Campus circles are hidden by default (they clutter areas where
-    // schools sit close together). Tapping a college shows only that
-    // college's circle; tapping it again — or another college — hides it.
-    var activeCircle = null;
-
     colleges.forEach(function(college) {
-      var circle = L.circle([college.lat, college.lng], {
-        radius: CAMPUS_RADIUS_METERS,
-        color: '#534AB7',
-        weight: 1.5,
-        dashArray: '6 4',
-        opacity: 0.45,
-        fillColor: '#534AB7',
-        fillOpacity: 0.10,
-        interactive: false
-      });
-
       // The name lives INSIDE the pin's own icon, not in a Leaflet tooltip.
       //
       // As a tooltip it was a separate layer that Leaflet had to place itself
@@ -1534,16 +1645,8 @@
         }),
         keyboard: false
       });
+      // Tap a college: go there. Nothing is drawn on the map.
       marker.on('click', function() {
-        var wasActive = (activeCircle === circle);
-        if (activeCircle) {
-          map.removeLayer(activeCircle);
-          activeCircle = null;
-        }
-        if (!wasActive) {
-          circle.addTo(map);
-          activeCircle = circle;
-        }
         map.setView([college.lat, college.lng], Math.max(map.getZoom(), 15));
       });
       marker.addTo(group);
@@ -1766,6 +1869,71 @@
     writeFree($picker, result);
     writeHideUntilFree($picker, 'date', result.label);
   }
+
+  // ---- Claim button -------------------------------------------------------
+  // Delegated, because the detail panel is re-rendered by Marionette on every
+  // navigation and a handler bound to the button itself would die with it.
+  //
+  // PlaceListItemView renders rows with template '#place-detail' - the SAME
+  // template as the panel - so every row in the room list carries a full copy
+  // of this block, claim button included. Claiming from a list row would hide
+  // a room from a screen where the student never opened it, and would put
+  // five of these buttons on one screen. This guard is the only thing that
+  // stops it: do NOT assume a CSS rule is also hiding them, because that
+  // rule lives in custom.css and may not be deployed alongside this file.
+  //
+  // Returns null for anything we refuse to act on. The .length check is not
+  // decoration: .closest() returns an EMPTY jQuery object when it matches
+  // nothing, and an empty jQuery object is truthy - so a caller writing
+  // `if (!$block) return;` would sail straight past it and then operate on
+  // a collection of zero elements, silently doing nothing.
+  function claimBlockOf(el) {
+    var $block = $(el).closest('.kk-claim');
+    if (!$block.length) { return null; }
+    if ($block.closest('#list-container').length) { return null; }
+    return $block;
+  }
+
+  $(document).on('click', '.kk-claim-start', function() {
+    var $block = claimBlockOf(this);
+    if (!$block) { return; }
+    $block.addClass('kk-claim-open').html(KK.claim.confirmHtml());
+    $block.find('.kk-claim-phone').trigger('focus');
+  });
+
+  $(document).on('click', '.kk-claim-cancel', function() {
+    var $block = claimBlockOf(this);
+    if (!$block) { return; }
+    $block.removeClass('kk-claim-open')
+          .html('<button type="button" class="btn btn-block kk-claim-start">' +
+                KK.esc(KK.claim.TEXT.start) + '</button>');
+  });
+
+  $(document).on('click', '.kk-claim-go', function() {
+    var $block = claimBlockOf(this);
+    if (!$block) { return; }
+    var id = $block.data('place-id'),
+        phone = String($block.find('.kk-claim-phone').val() || '').trim(),
+        $go = $(this);
+
+    // Disable BEFORE the request, not after it comes back. On a slow phone
+    // the gap is long enough to tap twice, and the second tap would be
+    // refused as "already on hold" and read as a failure.
+    if ($go.prop('disabled')) { return; }
+    $go.prop('disabled', true).text('...');
+
+    KK.claim.post(id, phone).then(function(result) {
+      $block.removeClass('kk-claim-open')
+            .addClass(result.granted ? 'kk-claim-done' : 'kk-claim-refused')
+            .html('<p class="kk-claim-result">' + KK.esc(result.message) + '</p>');
+
+      // The room is off the map now, so the map behind this panel is stale.
+      // Reloading is blunt but honest: it is the only way the marker goes.
+      if (result.granted && window.app && window.app.collection) {
+        setTimeout(function() { window.location.reload(); }, 2500);
+      }
+    });
+  });
 
   $(document).on('click', '.free-picker .free-kind', function() {
     var $picker = $(this).closest('.free-picker');

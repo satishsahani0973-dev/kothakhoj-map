@@ -101,6 +101,38 @@ var Shareabouts = Shareabouts || {};
 
       this.$el.html(Handlebars.templates['place-detail'](data));
 
+      // Give the Google Maps button a REAL href, at render time rather than
+      // on click. A real href can be long-pressed, opened in a new tab, and
+      // - the reason that matters here - deep-links straight into the Maps
+      // app on Android. Building the url inside a click handler and then
+      // assigning window.location would lose all three.
+      //
+      // The mode comes from the last GPS fix when we have a fresh one, so a
+      // room across town says "driving" rather than handing someone a
+      // two-hour walk. With no fix, walking: every room is in one town.
+      (function () {
+        var KKR = window.KothaKhoj && window.KothaKhoj.route;
+        var geo = window.KothaKhoj && window.KothaKhoj.geo;
+        if (!KKR || !KKR.gmapsLink) { return; }
+        self.$el.find('.open-in-gmaps').each(function () {
+          var $a = $(this);
+          var lat = +$a.data('lat'), lng = +$a.data('lng');
+          var meters = null;
+          var fix = geo && geo.lastFix;
+          if (fix && geo.isFresh(fix) && window.L) {
+            try {
+              meters = window.L.latLng(fix.lat, fix.lng)
+                              .distanceTo(window.L.latLng(lat, lng));
+            } catch (e) { meters = null; }
+          }
+          var href = KKR.gmapsLink(lat, lng,
+                                   typeof meters === 'number' ? meters : undefined);
+          // No href at all beats a broken one: a place with unusable
+          // coordinates should not offer to navigate to them.
+          if (href) { $a.attr('href', href); } else { $a.remove(); }
+        });
+      }());
+
     // Show the delete button when the server will accept the delete. A
     // signed-in poster owns their place by ACCOUNT, so match on the current
     // user's username against the place's submitter — this follows their

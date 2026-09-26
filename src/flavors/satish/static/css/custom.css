@@ -35,14 +35,22 @@
   border-top-color: #E0A400;
 }
 
-/* Highlighted "Directions" button (green = go / navigate) */
-.get-directions {
+/* Highlighted "Directions" button (green = go / navigate).
+   .open-in-gmaps is the same button after it stopped drawing a route on our
+   own map and started handing off to Google Maps. Listed beside the old class
+   rather than given its own block: a student should see no visual change at
+   all, and one selector list cannot drift the way two copies would.
+   .get-directions is kept for now because place-detail-view.js still binds
+   it; no template renders it any more. */
+.get-directions,
+.open-in-gmaps {
   background: #1a9850 !important;
   border-color: #1a9850 !important;
   color: #fff !important;
   font-weight: bold;
 }
-.get-directions:hover {
+.get-directions:hover,
+.open-in-gmaps:hover {
   background: #157a41 !important;
   border-color: #157a41 !important;
   color: #fff !important;
@@ -115,9 +123,19 @@ body.signin-gate #list-container {
 .place-directions-bar {
   margin: 10px 0;
 }
-.place-directions-bar .get-directions {
+.place-directions-bar .get-directions,
+.place-directions-bar .open-in-gmaps {
   font-size: 16px;
 }
+
+/* PlaceListItemView renders every list row with template '#place-detail'
+   (place-list-view.js:27), so each row carries its own copy of this bar. The
+   href is filled in only for the detail panel (place-detail-view.js scopes it
+   to self.$el), so a row's copy keeps href="#" - and the new anchor carries
+   target="_blank", which turns a tap in the list into a blank duplicate tab.
+   The old button was merely dead there; this one is worse than dead. The bar
+   belongs to the room's own page. */
+#list-container .place-directions-bar { display: none; }
 
 /* "Posting as <username>" chip at the top of the add-place form */
 .posting-as {

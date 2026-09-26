@@ -401,6 +401,18 @@ var Shareabouts = Shareabouts || {};
       var $results = $box.find('.merged-search-results');
       var geocodeTimer = null;
 
+      // Bumped by every event that makes the dropdown's contents obsolete:
+      // a keystroke, clearing the box, or choosing a result. A geocode reply
+      // remembers the value it was issued under and repaints only if it still
+      // matches.
+      //
+      // clearTimeout alone cannot do this. It cancels a PENDING timer, not a
+      // request already in flight - and the reply to that request is exactly
+      // what paints a dropdown over a box the student already cleared, or
+      // over the map they just chose. It also fixes replies arriving out of
+      // order: "kath" can land after "kathm" and would otherwise win.
+      var geocodeSeq = 0;
+
       function renderResults(localMatches, mapboxMatches) {
         $results.empty();
         var seen = {};
@@ -428,17 +440,33 @@ var Shareabouts = Shareabouts || {};
             self.map.setView([place.lat, place.lng], 17);
             $input.val(label);
             $results.empty();
+            // The student has chosen. Without this the pending geocode still
+            // fires ~400ms later and repaints the dropdown over the map they
+            // just flew to. Assigning .val() from code does not fire `input`,
+            // so nothing else would ever clean this up.
+            clearTimeout(geocodeTimer);
+            geocodeSeq++;
           });
           $results.append($item);
         });
 
         mapboxMatches.forEach(function(result) {
-          var $item = $('<div style="padding:8px; cursor:pointer; border-top:1px solid #eee;">\uD83C\uDF0D ' + result.name + '</div>');
+          // .text(), not a concatenated html string. result.name is
+          // f.place_name straight off the Mapbox geocoder - data we do not
+          // author. The LOCAL branch twelve lines above already does this
+          // correctly, and run-kk-tests.js:699 asserts "the place name is
+          // appended as escaped text, not raw html" - but its regex only
+          // ever inspected that local branch, so it passed while this line
+          // did the opposite.
+          var $item = $('<div style="padding:8px; cursor:pointer; border-top:1px solid #eee;"></div>')
+            .text('\uD83C\uDF0D ' + result.name);
           $item.on('click', function() {
             var zoom = self.map.getBoundsZoom(result.bbox);
             self.map.setView(result.center, zoom);
             $input.val(result.name);
             $results.empty();
+            clearTimeout(geocodeTimer);   // see the local branch above
+            geocodeSeq++;
           });
           $results.append($item);
         });
@@ -447,14 +475,24 @@ var Shareabouts = Shareabouts || {};
       $input.on('input', function() {
         var query = $(this).val();
         $results.empty();
+        // Cancel BEFORE the early return. This used to sit below it, so
+        // emptying the box returned without cancelling, and ~400ms later the
+        // deleted query's results appeared under an empty box - where
+        // clicking one still moved the map.
+        //
+        // Stamping the generation must also happen before the return, so that
+        // clearing the box retires a request that has ALREADY gone out. The
+        // cancel only covers the one still waiting on the timer.
+        clearTimeout(geocodeTimer);
+        var mySeq = ++geocodeSeq;
         if (!query) { return; }
 
         var localMatches = self.localSearch ? self.localSearch(query).slice(0, 5) : [];
         renderResults(localMatches, []);
 
-        clearTimeout(geocodeTimer);
         geocodeTimer = setTimeout(function() {
           geocodeMapbox(query, function(mapboxResults) {
+            if (mySeq !== geocodeSeq) { return; }   // a newer query won
             renderResults(localMatches, mapboxResults);
           });
         }, 400);

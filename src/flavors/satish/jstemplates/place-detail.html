@@ -67,11 +67,6 @@
           </span>
         </header>
 
-        <div class="place-directions-bar">
-          <a href="#" class="btn btn-block get-directions"
-             data-lat="{{geometry.coordinates.[1]}}" data-lng="{{geometry.coordinates.[0]}}">{{#_}}Directions{{/_}}</a>
-        </div>
-
         <section class="place-items">
           {{# attachments }}
           <div class="place-item place-item-attachment place-attachment-{{ name }}">
@@ -97,6 +92,38 @@
           </div>
           {{/each_place_item }}
           {{ contact_block contact_number contact_role }}
+
+          {{!-- Navigation sits BELOW the number, and that order is the whole
+                point. This link leaves the page: on Android it deep-links
+                into the Maps app. If the number were below it, a student
+                would hand themselves to Maps, walk fifteen minutes, arrive,
+                and have nothing to ring. Contact first means the number is
+                already in their WhatsApp thread before they go, and leaving
+                costs nothing.
+
+                This replaces a button that drew the route on our OWN map,
+                one for one. Turn-by-turn navigation is road graphs, traffic
+                and satellites; nobody builds that to show somebody a room,
+                which is why Uber and every delivery app hands off to Google
+                or Apple Maps too. The in-map route also died the moment the
+                screen locked, which is exactly when a student is walking.
+                Google Maps is the map they already know how to read.
+
+                This also MOVES the control: it used to sit above the photos
+                and details, now it sits under the phone number. Navigation
+                is the last thing you want, after you know where you are
+                going and have someone to ring when you arrive.
+
+                A real href, not a click handler: it can be long-pressed,
+                opened in a new tab, and deep-links into the app. The href is
+                filled in by place-detail-view.js, which also picks walking
+                or driving from the last GPS fix, and removes the link
+                entirely if the coordinates are unusable. --}}
+          <div class="place-directions-bar">
+            <a class="btn btn-block open-in-gmaps" target="_blank" rel="noopener noreferrer"
+               data-lat="{{geometry.coordinates.[1]}}" data-lng="{{geometry.coordinates.[0]}}"
+               href="#">{{#_}}Directions in Google Maps{{/_}}</a>
+          </div>
           {{!-- Grievance route required by the e-commerce listing rules, put
                 where a complaint actually starts: on the room itself. --}}
           {{ report_block id name }}
